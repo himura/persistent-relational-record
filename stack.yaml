@@ -1,0 +1,10 @@
+resolver: lts-3.14
+packages:
+- '.'
+extra-deps:
+- relational-query-0.6.2.0
+- persistable-record-0.1.0.1
+- names-th-0.2.0.0
+- sql-words-0.1.3.1
+flags: {}
+extra-package-dbs: []
