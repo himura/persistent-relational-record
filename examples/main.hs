@@ -91,9 +91,9 @@ sample = do
 
 getConnectInfo :: IO ConnectInfo
 getConnectInfo = do
-    host <- fromMaybe "localhost" <$> lookupEnv "MYSQL_HOST"
-    user <- fromMaybe "travis" <$> lookupEnv "MYSQL_USER"
-    pass <- fromMaybe "" <$> lookupEnv "MYSQL_PASS"
+    host <- fromMaybe "localhost" `fmap` lookupEnv "MYSQL_HOST"
+    user <- fromMaybe "travis" `fmap` lookupEnv "MYSQL_USER"
+    pass <- fromMaybe "" `fmap`lookupEnv "MYSQL_PASS"
     return defaultConnectInfo
         { connectHost = host
         , connectUser = user
