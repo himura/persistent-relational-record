@@ -99,7 +99,7 @@ maybeTyp may typ | may = conT ''Maybe `appT` typ
 
 mkHrrInstances :: [EntityDef] -> Q [Dec]
 mkHrrInstances entities =
-    concat <$> mapM (mkPersistablePrimaryKey . entityId) entities
+    concat `fmap` mapM (mkPersistablePrimaryKey . entityId) entities
 
 mkPersistablePrimaryKey :: FieldDef -> Q [Dec]
 mkPersistablePrimaryKey fd = do
