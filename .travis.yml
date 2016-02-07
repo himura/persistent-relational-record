@@ -22,8 +22,8 @@ install:
   - travis_wait stack --no-terminal --skip-ghc-check test --only-snapshot
 
 before_script:
-  - mysql -e 'CREATE DATABASE test DEFAULT CHARACTER SET utf8;'
-  - mysql -e 'GRANT ALL PRIVILEGES ON `test`.* TO travis@localhost;'
+  - mysql -u root -e 'CREATE DATABASE test DEFAULT CHARACTER SET utf8;'
+  - mysql -u root -e 'GRANT ALL PRIVILEGES ON `test`.* TO travis@localhost;'
 
 script:
   - travis_wait stack --no-terminal --skip-ghc-check test --flag persistent-relational-record:test-examples
