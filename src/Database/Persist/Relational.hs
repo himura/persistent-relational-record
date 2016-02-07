@@ -75,7 +75,7 @@ makeColumns t =
     toS = T.unpack . unDBName
 
 defineTableFromPersistent :: String -> String -> [EntityDef] -> Q [Dec]
-defineTableFromPersistent schema tableName entities = do
+defineTableFromPersistent schema tableName entities =
     case filter ((== tableName) . T.unpack . unDBName . entityDB) entities of
         (t:_) -> defineTableDefault
                      defaultConfig
@@ -95,7 +95,7 @@ maybeTyp may typ | may = conT ''Maybe `appT` typ
                  | otherwise = typ
 
 mkHrrInstances :: [EntityDef] -> Q [Dec]
-mkHrrInstances entities = do
+mkHrrInstances entities =
     concat <$> mapM (mkPersistablePrimaryKey . entityId) entities
 
 mkPersistablePrimaryKey :: FieldDef -> Q [Dec]
