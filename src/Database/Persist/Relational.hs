@@ -107,7 +107,8 @@ mkPersistablePrimaryKey fd = do
     notNullD <- deriveNotNullType typ
     persistableD <- derivePersistableInstanceFromValue typ
     scalarDegD <- defineScalarDegree typ
-    return $ convertibleD ++ notNullD ++ persistableD ++ scalarDegD
+    showCTermSQLD <- mkShowConstantTermsSQL typ
+    return $ convertibleD ++ notNullD ++ persistableD ++ scalarDegD ++ showCTermSQLD
   where
     typ = mkFieldType fd
 
@@ -126,6 +127,11 @@ mkConvertible typ = do
         [d|instance Convertible $typ Int64 where
                safeConvert = return . PersistSql.fromSqlKey|]
     return $ svToId ++ idToSv ++ intToId ++ idToInt
+
+mkShowConstantTermsSQL :: TypeQ -> Q [Dec]
+mkShowConstantTermsSQL typ =
+    [d|instance ShowConstantTermsSQL $typ where
+           showConstantTermsSQL' = showConstantTermsSQL' . PersistSql.fromSqlKey|]
 
 mkFieldType :: FieldDef -> TypeQ
 mkFieldType fd = maybeTyp (maybeNullable fd) (ftToType . fieldType $ fd)

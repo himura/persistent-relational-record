@@ -5,6 +5,7 @@
 module Main where
 
 import Database.Relational.Query as HRR
+import Fixtures.BlogSample.Model
 import qualified Fixtures.BlogSample.Post as Post
 import qualified Fixtures.BlogSample.PostTag as PostTag
 import qualified Fixtures.BlogSample.Tag as Tag
@@ -14,8 +15,8 @@ import Test.Framework.Providers.HUnit
 import Test.Framework.TH
 import Test.HUnit
 
-case_simple_equal_query :: Assertion
-case_simple_equal_query =
+case_simple_equal_string_query :: Assertion
+case_simple_equal_string_query =
     show subject @?= "SELECT ALL T0.id AS f0, T0.name AS f1, T0.age AS f2 FROM TEST.user T0 WHERE (T0.name = 'testuser')"
   where
     subject = relation $ do
@@ -23,8 +24,17 @@ case_simple_equal_query =
         wheres $ user ! User.name' .=. value "testuser"
         return user
 
-case_simple_comparing_query :: Assertion
-case_simple_comparing_query =
+case_simple_equal_id_query :: Assertion
+case_simple_equal_id_query =
+    show subject @?= "SELECT ALL T0.id AS f0, T0.name AS f1, T0.age AS f2 FROM TEST.user T0 WHERE (T0.id = 1)"
+  where
+    subject = relation $ do
+        user <- query User.user
+        wheres $ user ! User.id' .=. value (UserKey 1)
+        return user
+
+case_simple_comparing_int_query :: Assertion
+case_simple_comparing_int_query =
     show subject @?= "SELECT ALL T0.id AS f0, T0.name AS f1, T0.age AS f2 FROM TEST.user T0 WHERE (T0.age >= 18)"
   where
     subject = relation $ do
