@@ -14,8 +14,8 @@ cabal-version:       >=1.10
 extra-source-files:
   .gitignore
   .travis.yml
-  .travis/check-sdist.sh
-  .travis/stack-lts-5.yaml
+  .travis/*.sh
+  .travis/*.yaml
   README.md
   stack.yaml
 
