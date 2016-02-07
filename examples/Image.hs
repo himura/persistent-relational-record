@@ -4,11 +4,11 @@
 
 module Image where
 
+import Config
 import Data.ByteString (ByteString)
 import Data.Time (UTCTime)
-import Database.Persist.Relational
 import Model hiding (Image)
 import Prelude hiding (id)
 import Types
 
-defineTableFromPersistent "test" "image" db
+defineTable "image" db

@@ -75,10 +75,13 @@ makeColumns t =
     toS = T.unpack . unDBName
 
 defineTableFromPersistent :: String -> String -> [EntityDef] -> Q [Dec]
-defineTableFromPersistent schema tableName entities =
+defineTableFromPersistent = defineTableFromPersistent' defaultConfig
+
+defineTableFromPersistent' :: Config -> String -> String -> [EntityDef] -> Q [Dec]
+defineTableFromPersistent' config schema tableName entities =
     case filter ((== tableName) . T.unpack . unDBName . entityDB) entities of
         (t:_) -> defineTableDefault
-                     defaultConfig
+                     config
                      schema
                      tableName
                      (makeColumns t)

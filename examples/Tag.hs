@@ -4,9 +4,9 @@
 
 module Tag where
 
+import Config
 import Data.Text (Text)
-import Database.Persist.Relational
 import Model hiding (Tag)
 import Prelude hiding (id)
 
-defineTableFromPersistent "test" "tag" db
+defineTable "tag" db
