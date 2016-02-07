@@ -1,12 +1,20 @@
 module Main where
 
 import Control.Monad
+import Data.Maybe
 import Language.Haskell.HLint
 import System.Environment
 import System.Exit
 
 main :: IO ()
 main = do
-  args <- getArgs
-  hints <- hlint $ ["src", "--cpp-define=HLINT", "--cpp-ansi", "--cpp-file=dist/build/autogen/cabal_macros.h"] ++ args
-  unless (null hints) exitFailure
+    args <- getArgs
+    cabalMacros <- getCabalMacrosPath
+    hints <- hlint $ ["src", "--cpp-define=HLINT", "--cpp-ansi", "--cpp-file=" ++ cabalMacros] ++ args
+    unless (null hints) exitFailure
+
+getCabalMacrosPath :: IO FilePath
+getCabalMacrosPath = do
+    env <- getEnvironment
+    let dist = fromMaybe "dist" $ lookup "HASKELL_DIST_DIR" env
+    return $ dist ++ "/build/autogen/cabal_macros.h"
