@@ -14,6 +14,10 @@ cabal-version:       >=1.10
 extra-source-files:
   stack.yaml
 
+flag test-examples
+  default: False
+  manual: False
+
 library
   hs-source-dirs:      src
   build-depends:       base >= 4.7 && < 5
@@ -64,6 +68,41 @@ test-suite hlint
       base
     , hlint >= 1.7
   default-language:    Haskell2010
+
+test-suite examples
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      examples
+  main-is:             main.hs
+
+  if !flag(test-examples)
+    buildable: False
+  else
+    build-depends:     base
+                     , HDBC
+                     , bytestring
+                     , conduit
+                     , convertible
+                     , monad-logger
+                     , persistable-record
+                     , persistent
+                     , persistent-mysql
+                     , persistent-template
+                     , relational-query
+                     , relational-query-HDBC
+                     , resourcet
+                     , template-haskell
+                     , text
+                     , time
+                     , transformers
+                     , transformers-base
+                     , persistent-relational-record
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -O2 -fsimpl-tick-factor=120
+  default-language:    Haskell2010
+  other-modules:       Model
+                       Image
+                       ImageTag
+                       Tag
+                       Types
 
 source-repository head
   type:     git
