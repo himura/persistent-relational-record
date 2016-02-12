@@ -26,7 +26,7 @@ import Database.Relational.Query
 runQuery :: ( MonadResource m
             , MonadReader env m
             , HasPersistBackend env SqlBackend
-            , ToSql PersistValue p
+            , ToSql SqlValue p
             , FromSql SqlValue a
             )
          => Query p a
@@ -37,7 +37,7 @@ runQuery q vals = rawQuery q vals $= CL.map (runToRecord recordFromSql . map pTo
 rawQuery :: ( MonadResource m
             , MonadReader env m
             , HasPersistBackend env SqlBackend
-            , ToSql PersistValue p
+            , ToSql SqlValue p
             )
          => Query p a
          -> p
@@ -45,7 +45,7 @@ rawQuery :: ( MonadResource m
 rawQuery q vals = PersistSql.rawQuery queryTxt params
   where
     queryTxt = T.pack . untypeQuery $ q
-    params = runFromRecord recordToSql vals
+    params = map sqlToP . runFromRecord recordToSql $ vals
 
 pToSql :: PersistValue -> HDBC.SqlValue
 pToSql (PersistText s) = HDBC.SqlString (T.unpack s)
@@ -62,3 +62,19 @@ pToSql PersistNull = HDBC.SqlNull
 pToSql (PersistList _) = error "not implemented"
 pToSql (PersistMap _) = error "not implemented"
 pToSql (PersistObjectId _) = error "Do not support MongoDB backend"
+
+sqlToP :: HDBC.SqlValue -> PersistValue
+sqlToP (HDBC.SqlString s) = PersistText $ T.pack s
+sqlToP (HDBC.SqlByteString bs) = PersistByteString bs
+sqlToP (HDBC.SqlChar c) = PersistText $ T.singleton c
+sqlToP (HDBC.SqlInt64 i) = PersistInt64 i
+sqlToP (HDBC.SqlInt32 i) = PersistInt64 $ fromIntegral i
+sqlToP (HDBC.SqlInteger i) = PersistInt64 $ fromIntegral i
+sqlToP (HDBC.SqlDouble d) = PersistDouble d
+sqlToP (HDBC.SqlBool b) = PersistBool b
+sqlToP (HDBC.SqlLocalDate d) = PersistDay d
+sqlToP (HDBC.SqlLocalTimeOfDay t) = PersistTimeOfDay t
+sqlToP (HDBC.SqlUTCTime t) = PersistUTCTime t
+sqlToP (HDBC.SqlRational t) = PersistRational t
+sqlToP HDBC.SqlNull = PersistNull
+sqlToP e = error $ "not implemented: " ++ show e

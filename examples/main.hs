@@ -59,6 +59,14 @@ imageIdFromTagNameList matchAny tagNames =
             else c .=. value (fromIntegral . length $ tagNames)
     ]
 
+tagListOfImage :: Relation ImageId Tag.Tag
+tagListOfImage = relation' $ placeholder $ \ph -> do
+    tag <- query Tag.tag
+    imgtag <- query ImageTag.imageTag
+    on $ tag ! Tag.id' .=. imgtag ! ImageTag.tagId'
+    wheres $ imgtag ! ImageTag.imageId' .=. ph
+    return tag
+
 addImages :: TagId
           -> [Image]
           -> SqlPersistT (LoggingT IO) ()
@@ -88,6 +96,14 @@ sample = do
     runResourceT $
         runQuery (relationalQuery $ selectImageByTagNameList False ["shinku"]) ()
         $$ CL.mapM_ (liftBase . print)
+
+    mimg <- getBy $ UniqueImageHash "11eb1ee2b8f9b471f15d85fb784a8fd6"
+    case mimg of
+        Just (Entity k _) ->
+            runResourceT $
+                runQuery (relationalQuery tagListOfImage) k
+                $$ CL.mapM_ (liftBase . print)
+        Nothing -> liftBase $ putStrLn "Image not found"
 
 getConnectInfo :: IO ConnectInfo
 getConnectInfo = do

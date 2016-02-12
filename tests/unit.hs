@@ -33,6 +33,15 @@ case_simple_equal_id_query =
         wheres $ user ! User.id' .=. value (UserKey 1)
         return user
 
+case_simple_equal_placeholder :: Assertion
+case_simple_equal_placeholder =
+    show subject @?= "SELECT ALL T0.id AS f0, T0.name AS f1, T0.age AS f2 FROM TEST.user T0 WHERE (T0.id = ?)"
+  where
+    subject = relation' . placeholder $ \ph -> do
+        user <- query User.user
+        wheres $ user ! User.id' .=. ph
+        return user
+
 case_simple_comparing_int_query :: Assertion
 case_simple_comparing_int_query =
     show subject @?= "SELECT ALL T0.id AS f0, T0.name AS f1, T0.age AS f2 FROM TEST.user T0 WHERE (T0.age >= 18)"
