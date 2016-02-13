@@ -5,7 +5,6 @@ module Database.Persist.Relational.TH
        where
 
 import Data.Array (Array, listArray, (!))
-import Data.Char (toUpper, toLower)
 import Data.Convertible
 import Data.Int
 import qualified Data.Text as T
@@ -72,7 +71,7 @@ defineTableTypesWithConfig config schema tableName entityType columns = do
                (tableVarName "insert")
                (tableVarName "insertQuery")
                entityType
-               (tableSQL (normalizedTableName config) schema tableName)
+               tableName
                (map fst columns)
     colsDs <- defineColumnsDefault (mkName tableName) entityType columns
     return $ tableDs ++ colsDs
@@ -108,15 +107,6 @@ defineColumnsDefault recName entityType cols =
     defineColumns recName entityType [(varN n, ct) | (n, ct) <- cols]
   where
     varN name = varCamelcaseName (name ++ "'")
-
-tableSQL :: Bool -> String -> String -> String
-tableSQL normalize schema tableName = normalizeS schema ++ '.' : normalizeT tableName  where
-  normalizeS
-    | normalize = map toUpper
-    | otherwise = id
-  normalizeT
-    | normalize = map toLower
-    | otherwise = id
 
 defineHRRInstance :: Config -> String -> EntityDef -> Q [Dec]
 defineHRRInstance config schema entity = do
