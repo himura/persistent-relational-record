@@ -5,7 +5,6 @@
 module ImageTag where
 
 import Config
-import Model hiding (ImageTag)
-import Prelude hiding (id)
+import Model
 
 defineTable "image_tag" db

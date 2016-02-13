@@ -4,19 +4,27 @@
 module Database.Persist.Relational.TH
        where
 
+import Data.Array (Array, listArray, (!))
+import Data.Char (toUpper, toLower)
 import Data.Convertible
 import Data.Int
 import qualified Data.Text as T
 import Database.HDBC (SqlValue)
-import Database.HDBC.Query.TH
+import Database.HDBC.Record.Persistable () -- PersistableValue SqlValue instance from Convertible
 import Database.HDBC.Record.TH
 import Database.Persist
 import Database.Persist.Quasi
+import Database.Persist.Relational.Instances ()
 import qualified Database.Persist.Sql as PersistSql
-import Database.Record.TH (deriveNotNullType, deriveNotNullType)
-import Database.Relational.Query
-import Database.Relational.Query.TH (defineScalarDegree)
+import Database.Record (PersistableWidth (..))
+import Database.Record.Persistable (unsafePersistableRecordWidth)
+import Database.Record.TH (deriveNotNullType, recordWidthTemplate, columnOffsetsVarNameDefault, makeRecordPersistableWithSqlTypeDefault)
+import Database.Relational.Query hiding ((!))
+import qualified Database.Relational.Query.Pi.Unsafe as UnsafePi
+import Database.Relational.Query.TH (defineScalarDegree, defineScalarDegree, defineProductConstructorInstance, defineTableTypes)
 import Language.Haskell.TH
+import Language.Haskell.TH.Lib.Extra (integralE, simpleValD)
+import Language.Haskell.TH.Name.CamelCase (VarName (..), toVarExp, varNameWithPrefix, varCamelcaseName)
 
 ftToType :: FieldType -> TypeQ
 ftToType (FTTypeCon Nothing t) = conT $ mkName $ T.unpack t
@@ -35,20 +43,106 @@ makeColumns t =
     mkCol fd = (toS $ fieldDB fd, mkFieldType fd)
     toS = T.unpack . unDBName
 
+defineColumnOffsets' :: Name -- ^ record type name
+                     -> TypeQ -- ^ record entity type
+                     -> [TypeQ] -- ^ columns
+                     -> Q [Dec]
+defineColumnOffsets' name entityType columns = do
+    ar <- simpleValD (varName ofsVar) [t| Array Int Int |]
+          [| listArray (0 :: Int, $widthIxE) $
+             scanl (+) (0 :: Int) $(listE $ map recordWidthTemplate columns) |]
+    pw <- [d| instance PersistableWidth $entityType where
+                  persistableWidth = unsafePersistableRecordWidth $
+                                     $(toVarExp ofsVar) ! $widthIxE |]
+    return $ ar ++ pw
+  where
+    ofsVar = columnOffsetsVarNameDefault name
+    widthIxE = integralE $ length columns
+
+defineTableTypesWithConfig :: Config   -- ^ Configuration to generate query with
+                           -> String   -- ^ Schema name
+                           -> String   -- ^ Table name
+                           -> TypeQ
+                           -> [(String, TypeQ)] -- ^ Columns
+                           -> Q [Dec]  -- ^ Result declarations
+defineTableTypesWithConfig config schema tableName entityType columns = do
+    tableDs <- defineTableTypes
+               (tableVarName "tableOf")
+               (relationVarName (nameConfig config) schema tableName)
+               (tableVarName "insert")
+               (tableVarName "insertQuery")
+               entityType
+               (tableSQL (normalizedTableName config) schema tableName)
+               (map fst columns)
+    colsDs <- defineColumnsDefault (mkName tableName) entityType columns
+    return $ tableDs ++ colsDs
+  where
+    tableVarName = (tableName `varNameWithPrefix`)
+
+defineColumns :: Name               -- ^ record type name
+              -> TypeQ              -- ^ entity type name
+              -> [(VarName, TypeQ)] -- ^ Column info list
+              -> Q [Dec]
+defineColumns recName entityType cols =
+    fmap concat . sequence $ zipWith defC cols [0 :: Int ..]
+  where
+    defC (cn, ct) ix =
+        columnTemplate' entityType cn
+        [| $(toVarExp . columnOffsetsVarNameDefault $ recName) ! $(integralE ix) |] ct
+
+columnTemplate' :: TypeQ   -- ^ Record type
+                -> VarName -- ^ Column declaration variable name
+                -> ExpQ    -- ^ Column index expression in record (begin with 0)
+                -> TypeQ   -- ^ Column type
+                -> Q [Dec] -- ^ Column projection path declaration
+columnTemplate' recType var' iExp colType = do
+    let var = varName var'
+    simpleValD var [t| Pi $recType $colType |]
+        [| UnsafePi.definePi $(iExp) |]
+
+defineColumnsDefault :: Name              -- ^ record type name
+                     -> TypeQ             -- ^ entity type name
+                     -> [(String, TypeQ)] -- ^ Column info list
+                     -> Q [Dec]
+defineColumnsDefault recName entityType cols =
+    defineColumns recName entityType [(varN n, ct) | (n, ct) <- cols]
+  where
+    varN name = varCamelcaseName (name ++ "'")
+
+tableSQL :: Bool -> String -> String -> String
+tableSQL normalize schema tableName = normalizeS schema ++ '.' : normalizeT tableName  where
+  normalizeS
+    | normalize = map toUpper
+    | otherwise = id
+  normalizeT
+    | normalize = map toLower
+    | otherwise = id
+
+defineHRRInstance :: Config -> String -> EntityDef -> Q [Dec]
+defineHRRInstance config schema entity = do
+    offs <- defineColumnOffsets' (mkName recordName) entityType colTypes
+    rconD <- defineProductConstructorInstance recordType (conE . mkName $ recordName) (tail colTypes)
+    tableDs <- defineTableTypesWithConfig config schema tableName entityType columns
+    sqlvD  <- makeRecordPersistableWithSqlTypeDefault [t| SqlValue |] schema tableName (length columns - 1)
+    return $ offs ++ rconD ++ tableDs ++ sqlvD
+  where
+    tableName = T.unpack . unDBName . entityDB $ entity
+    recordName = T.unpack . unHaskellName . entityHaskell $ entity
+    recordType = conT (mkName recordName)
+    entityType = [t|Entity $recordType|]
+    columns = makeColumns entity
+    colTypes = map snd columns
+
 defineTableFromPersistent :: String -> String -> [EntityDef] -> Q [Dec]
 defineTableFromPersistent = defineTableFromPersistent' defaultConfig
 
 defineTableFromPersistent' :: Config -> String -> String -> [EntityDef] -> Q [Dec]
 defineTableFromPersistent' config schema tableName entities =
     case filter ((== tableName) . T.unpack . unDBName . entityDB) entities of
-        (t:_) -> defineTableDefault
+        (t:_) -> defineHRRInstance
                      config
                      schema
-                     tableName
-                     (makeColumns t)
-                     (map (mkName . T.unpack) . entityDerives $ t)
-                     [0]
-                     (Just 0)
+                     t
         _ -> error $ "makeColumns: Table " ++ tableName ++ " not found"
 
 maybeNullable :: FieldDef -> Bool

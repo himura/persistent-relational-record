@@ -6,7 +6,6 @@ module Tag where
 
 import Config
 import Data.Text (Text)
-import Model hiding (Tag)
-import Prelude hiding (id)
+import Model
 
 defineTable "tag" db
