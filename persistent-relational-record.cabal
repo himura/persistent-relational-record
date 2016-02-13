@@ -26,10 +26,8 @@ flag test-examples
 library
   hs-source-dirs:      src
   build-depends:       base >= 4.7 && < 5
-                     , HDBC
                      , array
                      , conduit
-                     , convertible
                      , mtl
                      , names-th
                      , persistable-record
@@ -85,10 +83,8 @@ test-suite examples
     buildable: False
   else
     build-depends:     base
-                     , HDBC
                      , bytestring
                      , conduit
-                     , convertible
                      , monad-logger
                      , persistable-record
                      , persistent
