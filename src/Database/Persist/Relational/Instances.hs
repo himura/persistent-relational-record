@@ -41,6 +41,4 @@ instance PersistField a => PersistableValue PersistValue a where
                 Left err -> error $ T.unpack err
                 Right a -> a
 
-do
-    types <- persistValueTypesFromPersistFieldInstances ["SomePersistField"]
-    concat `fmap` mapM defineFromToSqlPersistValue types
+derivePersistableInstancesFromPersistFieldInstances ["SomePersistField"]

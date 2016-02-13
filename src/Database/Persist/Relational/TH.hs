@@ -220,3 +220,11 @@ persistValueTypesFromPersistFieldInstances blacklist = do
            | insT == pfT
           && nameBase n `notElem` blacklist = Just (return t)
     go _ _ = Nothing
+
+derivePersistableInstancesFromPersistFieldInstances
+    :: [String] -- ^ blacklist types
+    -> Q [Dec]
+derivePersistableInstancesFromPersistFieldInstances blacklist = do
+    types <- persistValueTypesFromPersistFieldInstances blacklist
+    concat `fmap` mapM defineFromToSqlPersistValue types
+
