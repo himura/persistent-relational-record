@@ -110,18 +110,15 @@ defineColumnsDefault recName entityType cols =
 
 defineHRRInstance :: Config -> String -> EntityDef -> Q [Dec]
 defineHRRInstance config schema entity = do
-    offs <- defineColumnOffsets' (mkName recordName) entityType colTypes
-    rconD <- defineProductConstructorInstance recordType (conE . mkName $ recordName) (tail colTypes)
-    tableDs <- defineTableTypesWithConfig config schema tableName entityType columns
     sqlvD  <- makeRecordPersistableWithSqlTypeDefault [t| SqlValue |] schema tableName (length columns - 1)
-    return $ offs ++ rconD ++ tableDs ++ sqlvD
+    tableDs <- defineTableTypesWithConfig config schema tableName entityType columns
+    return $ tableDs ++ sqlvD
   where
     tableName = T.unpack . unDBName . entityDB $ entity
     recordName = T.unpack . unHaskellName . entityHaskell $ entity
     recordType = conT (mkName recordName)
     entityType = [t|Entity $recordType|]
     columns = makeColumns entity
-    colTypes = map snd columns
 
 defineTableFromPersistent :: String -> String -> [EntityDef] -> Q [Dec]
 defineTableFromPersistent = defineTableFromPersistent' defaultConfig
@@ -144,7 +141,20 @@ maybeTyp may typ | may = conT ''Maybe `appT` typ
 
 mkHrrInstances :: [EntityDef] -> Q [Dec]
 mkHrrInstances entities =
-    concat `fmap` mapM (mkPersistablePrimaryKey . entityId) entities
+    concat `fmap` mapM mkHrrInstancesEachEntityDef entities
+
+mkHrrInstancesEachEntityDef :: EntityDef -> Q [Dec]
+mkHrrInstancesEachEntityDef entity = do
+    ppkey <- mkPersistablePrimaryKey . entityId $ entity
+    offs <- defineColumnOffsets' (mkName recordName) entityType colTypes
+    rconD <- defineProductConstructorInstance recordType (conE . mkName $ recordName) (tail colTypes)
+    return $ ppkey ++ offs ++ rconD
+  where
+    recordName = T.unpack . unHaskellName . entityHaskell $ entity
+    recordType = conT (mkName recordName)
+    entityType = [t|Entity $recordType|]
+    columns = makeColumns entity
+    colTypes = map snd columns
 
 mkPersistablePrimaryKey :: FieldDef -> Q [Dec]
 mkPersistablePrimaryKey fd = do
