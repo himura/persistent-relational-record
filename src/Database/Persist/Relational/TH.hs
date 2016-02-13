@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -21,7 +22,8 @@ import Database.Record.Persistable (unsafePersistableRecordWidth)
 import Database.Record.TH (deriveNotNullType, recordWidthTemplate, columnOffsetsVarNameDefault, makeRecordPersistableWithSqlType, persistableFunctionNamesDefault)
 import Database.Relational.Query hiding ((!))
 import qualified Database.Relational.Query.Pi.Unsafe as UnsafePi
-import Database.Relational.Query.TH (defineScalarDegree, defineScalarDegree, defineProductConstructorInstance, defineTableTypes)
+import Database.Relational.Query.TH (defineScalarDegree, defineProductConstructorInstance)
+import qualified Database.Relational.Query.Table as Table
 import Language.Haskell.TH
 import Language.Haskell.TH.Lib.Extra (integralE, simpleValD)
 import Language.Haskell.TH.Name.CamelCase (VarName (..), toVarExp, varNameWithPrefix, varCamelcaseName, conCamelcaseName, toTypeCon, toDataCon, conName)
@@ -74,20 +76,34 @@ defineColumnOffsets' name entityType columns = do
 
 defineTableTypesFromEntityDef :: EntityDef -> Q [Dec]
 defineTableTypesFromEntityDef entity = do
-    tableDs <- defineTableTypes
-               (tableVarName "tableOf")
-               (varCamelcaseName tableName)
-               (tableVarName "insert")
-               (tableVarName "insertQuery")
-               entityType
-               tableName
-               (map fst columns)
-    colsDs <- defineColumnsDefault (mkName tableName) entityType columns
-    return $ tableDs ++ colsDs
+    tDeriv <- defineTableDerivations td
+    colsDs <- defineColumnsDefault (mkName tableName) [t|Entity $(conT recordName)|] columns
+    return $ tDeriv ++ colsDs
   where
-    TableData {..} = mkTableData entity
+    td@TableData {..} = mkTableData entity
+
+defineTableDerivableInstance :: TableData -> Q [Dec]
+defineTableDerivableInstance TableData {..} =
+    [d| instance TableDerivable (Entity $(conT recordName)) where
+            derivedTable = Table.table $(stringE tableName) $(listE $ map (stringE . fst) columns) |]
+
+defineTableDerivations :: TableData -> Q [Dec]
+defineTableDerivations TableData {..} = do
+    tableDs <- simpleValD tableVar [t| Table $entityType |]
+               [| derivedTable |]
+    relDs <- simpleValD relVar   [t| Relation () $entityType |]
+             [| derivedRelation |]
+    insDs   <- simpleValD insVar   [t| Insert $entityType |]
+               [| derivedInsert id' |]
+    insQDs  <- simpleValD insQVar  [t| forall p . Relation p $entityType -> InsertQuery p |]
+               [| derivedInsertQuery id' |]
+    return $ concat [tableDs, relDs, insDs, insQDs]
+  where
     entityType = [t|Entity $(conT recordName)|]
-    tableVarName = (tableName `varNameWithPrefix`)
+    tableVar = varName $ tableName `varNameWithPrefix` "tableOf"
+    relVar = varName $ varCamelcaseName tableName
+    insVar = varName $ tableName `varNameWithPrefix` "insert"
+    insQVar = varName $ tableName `varNameWithPrefix` "insertQuery"
 
 defineColumns :: Name               -- ^ record type name
               -> TypeQ              -- ^ entity type name
@@ -156,9 +172,10 @@ mkHrrInstancesEachEntityDef entity = do
     offs <- defineColumnOffsets' recordName [t|Entity $recordType|] colTypes
     rconD <- defineProductConstructorInstance recordType (conE recordName) (tail colTypes)
     sqlvD  <- makeRecordPersistableWithSqlTypeDefault' [t| SqlValue |] tableName (length columns - 1)
-    return $ ppkey ++ offs ++ rconD ++ sqlvD
+    tDeriv <- defineTableDerivableInstance td
+    return $ ppkey ++ offs ++ rconD ++ sqlvD ++ tDeriv
   where
-    TableData {..} = mkTableData entity
+    td@TableData {..} = mkTableData entity
     recordType = conT recordName
     colTypes = map snd columns
 
