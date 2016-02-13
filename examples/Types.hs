@@ -9,6 +9,7 @@ import Database.HDBC (SqlValue)
 import Database.HDBC.Record.Persistable () -- PersistableValue SqlValue instance from Convertible
 import Database.HDBC.Record.TH
 import Database.Persist
+import Database.Persist.Relational
 import Database.Persist.Sql
 import Database.Record.TH (deriveNotNullType, deriveNotNullType)
 import Database.Relational.Query.Pure
@@ -41,3 +42,4 @@ instance PersistField ImageType where
     toPersistValue = PersistInt64 . fromIntegral . fromEnum
     fromPersistValue (PersistInt64 v) = Right . toEnum . fromIntegral $ v
     fromPersistValue v = Left . T.pack $ "ImageType: Unkown Type, recieved: " ++ show v
+defineFromToSqlPersistValue [t|ImageType|]
