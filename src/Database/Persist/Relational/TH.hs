@@ -8,6 +8,7 @@ module Database.Persist.Relational.TH
 
 import Data.Array (Array, listArray, (!))
 import Data.Int
+import Data.Maybe
 import qualified Data.Text as T
 import Database.HDBC.Record.Persistable () -- PersistableValue SqlValue instance from Convertible
 import Database.Persist
@@ -204,3 +205,18 @@ defineFromToSqlPersistValue typ = do
         [d| instance ToSql PersistValue $typ where
                 recordToSql = valueToSql |]
     return $ fromSqlI ++ toSqlI
+
+persistValueTypesFromPersistFieldInstances
+    :: [String] -- ^ blacklist types
+    -> Q [TypeQ]
+persistValueTypesFromPersistFieldInstances blacklist = do
+    pf <- reify ''PersistField
+    pfT <- [t|PersistField|]
+    case pf of
+       ClassI _ instances -> return $ mapMaybe (go pfT) instances
+       unknown -> fail $ "persistValueTypesFromPersistFieldInstances: unknown declaration: " ++ show unknown
+  where
+    go pfT (InstanceD [] (AppT insT t@(ConT n)) [])
+           | insT == pfT
+          && nameBase n `notElem` blacklist = Just (return t)
+    go _ _ = Nothing
