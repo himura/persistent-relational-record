@@ -9,5 +9,5 @@ import Data.Time
 import Database.Persist.Relational
 import Fixtures.BlogSample.Model
 
-defineTableFromPersistent "test" "post" db
+defineTableFromPersistent "post" db
 

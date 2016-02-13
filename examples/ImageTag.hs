@@ -4,7 +4,7 @@
 
 module ImageTag where
 
-import Config
+import Database.Persist.Relational
 import Model
 
-defineTable "image_tag" db
+defineTableFromPersistent "image_tag" db

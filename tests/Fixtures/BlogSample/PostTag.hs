@@ -7,5 +7,5 @@ module Fixtures.BlogSample.PostTag where
 import Database.Persist.Relational
 import Fixtures.BlogSample.Model
 
-defineTableFromPersistent "test" "post_tag" db
+defineTableFromPersistent "post_tag" db
 

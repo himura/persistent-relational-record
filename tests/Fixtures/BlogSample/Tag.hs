@@ -8,5 +8,5 @@ import Data.Text (Text)
 import Database.Persist.Relational
 import Fixtures.BlogSample.Model
 
-defineTableFromPersistent "test" "tag" db
+defineTableFromPersistent "tag" db
 

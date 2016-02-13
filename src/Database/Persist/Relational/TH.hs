@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Database.Persist.Relational.TH
@@ -17,13 +18,13 @@ import Database.Persist.Relational.Instances ()
 import qualified Database.Persist.Sql as PersistSql
 import Database.Record (PersistableWidth (..))
 import Database.Record.Persistable (unsafePersistableRecordWidth)
-import Database.Record.TH (deriveNotNullType, recordWidthTemplate, columnOffsetsVarNameDefault, makeRecordPersistableWithSqlTypeDefault)
+import Database.Record.TH (deriveNotNullType, recordWidthTemplate, columnOffsetsVarNameDefault, makeRecordPersistableWithSqlType, persistableFunctionNamesDefault)
 import Database.Relational.Query hiding ((!))
 import qualified Database.Relational.Query.Pi.Unsafe as UnsafePi
 import Database.Relational.Query.TH (defineScalarDegree, defineScalarDegree, defineProductConstructorInstance, defineTableTypes)
 import Language.Haskell.TH
 import Language.Haskell.TH.Lib.Extra (integralE, simpleValD)
-import Language.Haskell.TH.Name.CamelCase (VarName (..), toVarExp, varNameWithPrefix, varCamelcaseName)
+import Language.Haskell.TH.Name.CamelCase (VarName (..), toVarExp, varNameWithPrefix, varCamelcaseName, conCamelcaseName, toTypeCon, toDataCon, conName)
 
 ftToType :: FieldType -> TypeQ
 ftToType (FTTypeCon Nothing t) = conT $ mkName $ T.unpack t
@@ -33,6 +34,19 @@ ftToType (FTTypeCon (Just "Data.Int") "Int64") = conT ''Int64
 ftToType (FTTypeCon (Just m) t) = conT $ mkName $ T.unpack $ T.concat [m, ".", t]
 ftToType (FTApp x y) = ftToType x `appT` ftToType y
 ftToType (FTList x) = listT `appT` ftToType x
+
+data TableData = TableData
+    { tableName :: String
+    , recordName :: Name
+    , columns :: [(String, TypeQ)]
+    }
+
+mkTableData :: EntityDef -> TableData
+mkTableData entity = TableData tn recn cs
+  where
+    tn = T.unpack . unDBName . entityDB $ entity
+    recn = mkName . T.unpack . unHaskellName . entityHaskell $ entity
+    cs = makeColumns entity
 
 makeColumns :: EntityDef
             -> [(String, TypeQ)]
@@ -58,16 +72,11 @@ defineColumnOffsets' name entityType columns = do
     ofsVar = columnOffsetsVarNameDefault name
     widthIxE = integralE $ length columns
 
-defineTableTypesWithConfig :: Config   -- ^ Configuration to generate query with
-                           -> String   -- ^ Schema name
-                           -> String   -- ^ Table name
-                           -> TypeQ
-                           -> [(String, TypeQ)] -- ^ Columns
-                           -> Q [Dec]  -- ^ Result declarations
-defineTableTypesWithConfig config schema tableName entityType columns = do
+defineTableTypesFromEntityDef :: EntityDef -> Q [Dec]
+defineTableTypesFromEntityDef entity = do
     tableDs <- defineTableTypes
                (tableVarName "tableOf")
-               (relationVarName (nameConfig config) schema tableName)
+               (varCamelcaseName tableName)
                (tableVarName "insert")
                (tableVarName "insertQuery")
                entityType
@@ -76,6 +85,8 @@ defineTableTypesWithConfig config schema tableName entityType columns = do
     colsDs <- defineColumnsDefault (mkName tableName) entityType columns
     return $ tableDs ++ colsDs
   where
+    TableData {..} = mkTableData entity
+    entityType = [t|Entity $(conT recordName)|]
     tableVarName = (tableName `varNameWithPrefix`)
 
 defineColumns :: Name               -- ^ record type name
@@ -108,28 +119,10 @@ defineColumnsDefault recName entityType cols =
   where
     varN name = varCamelcaseName (name ++ "'")
 
-defineHRRInstance :: Config -> String -> EntityDef -> Q [Dec]
-defineHRRInstance config schema entity = do
-    sqlvD  <- makeRecordPersistableWithSqlTypeDefault [t| SqlValue |] schema tableName (length columns - 1)
-    tableDs <- defineTableTypesWithConfig config schema tableName entityType columns
-    return $ tableDs ++ sqlvD
-  where
-    tableName = T.unpack . unDBName . entityDB $ entity
-    recordName = T.unpack . unHaskellName . entityHaskell $ entity
-    recordType = conT (mkName recordName)
-    entityType = [t|Entity $recordType|]
-    columns = makeColumns entity
-
-defineTableFromPersistent :: String -> String -> [EntityDef] -> Q [Dec]
-defineTableFromPersistent = defineTableFromPersistent' defaultConfig
-
-defineTableFromPersistent' :: Config -> String -> String -> [EntityDef] -> Q [Dec]
-defineTableFromPersistent' config schema tableName entities =
+defineTableFromPersistent :: String -> [EntityDef] -> Q [Dec]
+defineTableFromPersistent tableName entities =
     case filter ((== tableName) . T.unpack . unDBName . entityDB) entities of
-        (t:_) -> defineHRRInstance
-                     config
-                     schema
-                     t
+        (t:_) -> defineTableTypesFromEntityDef t
         _ -> error $ "makeColumns: Table " ++ tableName ++ " not found"
 
 maybeNullable :: FieldDef -> Bool
@@ -143,17 +136,30 @@ mkHrrInstances :: [EntityDef] -> Q [Dec]
 mkHrrInstances entities =
     concat `fmap` mapM mkHrrInstancesEachEntityDef entities
 
+-- | All templates depending on SQL value type with configured names.
+makeRecordPersistableWithSqlTypeDefault'
+    :: TypeQ      -- ^ SQL value type
+    -> String     -- ^ Table name of database
+    -> Int        -- ^ Count of record columns
+    -> Q [Dec]    -- ^ Result declarations
+makeRecordPersistableWithSqlTypeDefault' sqlValueType tableName =
+    makeRecordPersistableWithSqlType
+        sqlValueType
+        (persistableFunctionNamesDefault . conName $ name)
+        (toTypeCon name, toDataCon name)
+  where
+    name = conCamelcaseName tableName
+
 mkHrrInstancesEachEntityDef :: EntityDef -> Q [Dec]
 mkHrrInstancesEachEntityDef entity = do
     ppkey <- mkPersistablePrimaryKey . entityId $ entity
-    offs <- defineColumnOffsets' (mkName recordName) entityType colTypes
-    rconD <- defineProductConstructorInstance recordType (conE . mkName $ recordName) (tail colTypes)
-    return $ ppkey ++ offs ++ rconD
+    offs <- defineColumnOffsets' recordName [t|Entity $recordType|] colTypes
+    rconD <- defineProductConstructorInstance recordType (conE recordName) (tail colTypes)
+    sqlvD  <- makeRecordPersistableWithSqlTypeDefault' [t| SqlValue |] tableName (length columns - 1)
+    return $ ppkey ++ offs ++ rconD ++ sqlvD
   where
-    recordName = T.unpack . unHaskellName . entityHaskell $ entity
-    recordType = conT (mkName recordName)
-    entityType = [t|Entity $recordType|]
-    columns = makeColumns entity
+    TableData {..} = mkTableData entity
+    recordType = conT recordName
     colTypes = map snd columns
 
 mkPersistablePrimaryKey :: FieldDef -> Q [Dec]
