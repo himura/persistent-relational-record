@@ -28,12 +28,12 @@ library
   build-depends:       base >= 4.7 && < 5
                      , array
                      , conduit
+                     , containers
                      , mtl
                      , names-th
                      , persistable-record
                      , persistent
                      , relational-query
-                     , relational-query-HDBC
                      , resourcet
                      , template-haskell
                      , text
@@ -91,7 +91,6 @@ test-suite examples
                      , persistent-mysql
                      , persistent-template
                      , relational-query
-                     , relational-query-HDBC
                      , resourcet
                      , template-haskell
                      , text

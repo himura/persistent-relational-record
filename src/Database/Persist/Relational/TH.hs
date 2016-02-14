@@ -9,8 +9,8 @@ module Database.Persist.Relational.TH
 import Data.Array (Array, listArray, (!))
 import Data.Int
 import Data.Maybe
+import qualified Data.Set as Set
 import qualified Data.Text as T
-import Database.HDBC.Record.Persistable () -- PersistableValue SqlValue instance from Convertible
 import Database.Persist
 import Database.Persist.Quasi
 import qualified Database.Persist.Sql as PersistSql
@@ -208,23 +208,38 @@ defineFromToSqlPersistValue typ = do
 
 persistValueTypesFromPersistFieldInstances
     :: [String] -- ^ blacklist types
-    -> Q [TypeQ]
+    -> Q (Set.Set Type)
 persistValueTypesFromPersistFieldInstances blacklist = do
     pf <- reify ''PersistField
     pfT <- [t|PersistField|]
     case pf of
-       ClassI _ instances -> return $ mapMaybe (go pfT) instances
+       ClassI _ instances -> return . Set.fromList $ mapMaybe (go pfT) instances
        unknown -> fail $ "persistValueTypesFromPersistFieldInstances: unknown declaration: " ++ show unknown
   where
     go pfT (InstanceD [] (AppT insT t@(ConT n)) [])
            | insT == pfT
-          && nameBase n `notElem` blacklist = Just (return t)
+          && nameBase n `notElem` blacklist = Just t
     go _ _ = Nothing
+
+persistableWidthTypes :: Q (Set.Set Type)
+persistableWidthTypes =
+    reify ''PersistableWidth >>= goI
+  where
+    unknownDecl decl = fail $ "persistableWidthTypes: Unknown declaration: " ++ show decl
+    goI (ClassI _ instances) = Set.fromList `fmap` mapM goD instances
+    goI unknown = unknownDecl unknown
+    goD (InstanceD _cxt (AppT _insT a) _defs) = return a
+    goD unknown = unknownDecl unknown
 
 derivePersistableInstancesFromPersistFieldInstances
     :: [String] -- ^ blacklist types
     -> Q [Dec]
 derivePersistableInstancesFromPersistFieldInstances blacklist = do
     types <- persistValueTypesFromPersistFieldInstances blacklist
-    concat `fmap` mapM defineFromToSqlPersistValue types
-
+    pwts <- persistableWidthTypes
+    ftsql <- concatMapTypes defineFromToSqlPersistValue types
+    ws <- concatMapTypes deriveNotNullType $ types `Set.difference` pwts
+    return $ ftsql ++ ws
+  where
+    concatMapTypes :: (Q Type -> Q [Dec]) -> Set.Set Type -> Q [Dec]
+    concatMapTypes f = fmap concat . mapM (f . return) . Set.toList
