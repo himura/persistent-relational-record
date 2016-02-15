@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -8,6 +9,9 @@
 module Database.Persist.Relational.Instances
        where
 
+#if __GLASGOW_HASKELL__ < 710
+import Control.Applicative
+#endif
 import qualified Data.Text as T
 import Database.Persist
 import Database.Persist.Relational.TH
