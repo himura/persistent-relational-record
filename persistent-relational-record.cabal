@@ -26,17 +26,14 @@ flag test-examples
 library
   hs-source-dirs:      src
   build-depends:       base >= 4.7 && < 5
-                     , HDBC
                      , array
-                     , bytestring
                      , conduit
-                     , convertible
+                     , containers
                      , mtl
                      , names-th
                      , persistable-record
                      , persistent
                      , relational-query
-                     , relational-query-HDBC
                      , resourcet
                      , template-haskell
                      , text
@@ -86,17 +83,14 @@ test-suite examples
     buildable: False
   else
     build-depends:     base
-                     , HDBC
                      , bytestring
                      , conduit
-                     , convertible
                      , monad-logger
                      , persistable-record
                      , persistent
                      , persistent-mysql
                      , persistent-template
                      , relational-query
-                     , relational-query-HDBC
                      , resourcet
                      , template-haskell
                      , text
