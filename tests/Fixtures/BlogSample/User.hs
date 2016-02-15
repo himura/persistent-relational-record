@@ -6,8 +6,7 @@ module Fixtures.BlogSample.User where
 
 import Data.Text (Text)
 import Database.Persist.Relational
-import Fixtures.BlogSample.Model hiding (User)
-import Prelude hiding (id)
+import Fixtures.BlogSample.Model
 
-defineTableFromPersistent "test" "user" db
+defineTableFromPersistent "user" db
 

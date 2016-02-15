@@ -4,8 +4,7 @@
 
 module ImageTag where
 
-import Config
-import Model hiding (ImageTag)
-import Prelude hiding (id)
+import Database.Persist.Relational
+import Model
 
-defineTable "image_tag" db
+defineTableFromPersistent "image_tag" db
