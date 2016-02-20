@@ -9,7 +9,7 @@ module Database.Persist.Relational.TH
 import Data.Array (Array, listArray, (!))
 import Data.Int
 import Data.Maybe
-import qualified Data.Set as Set
+import qualified Data.Map as M
 import qualified Data.Text as T
 import Database.Persist
 import Database.Persist.Quasi
@@ -208,28 +208,28 @@ defineFromToSqlPersistValue typ = do
 
 persistValueTypesFromPersistFieldInstances
     :: [String] -- ^ blacklist types
-    -> Q (Set.Set Type)
+    -> Q (M.Map Name TypeQ)
 persistValueTypesFromPersistFieldInstances blacklist = do
     pf <- reify ''PersistField
     pfT <- [t|PersistField|]
     case pf of
-       ClassI _ instances -> return . Set.fromList $ mapMaybe (go pfT) instances
+       ClassI _ instances -> return . M.fromList $ mapMaybe (go pfT) instances
        unknown -> fail $ "persistValueTypesFromPersistFieldInstances: unknown declaration: " ++ show unknown
   where
     go pfT (InstanceD [] (AppT insT t@(ConT n)) [])
            | insT == pfT
-          && nameBase n `notElem` blacklist = Just t
+          && nameBase n `notElem` blacklist = Just (n, return t)
     go _ _ = Nothing
 
-persistableWidthTypes :: Q (Set.Set Type)
+persistableWidthTypes :: Q (M.Map Name TypeQ)
 persistableWidthTypes =
     reify ''PersistableWidth >>= goI
   where
     unknownDecl decl = fail $ "persistableWidthTypes: Unknown declaration: " ++ show decl
-    goI (ClassI _ instances) = Set.fromList `fmap` mapM goD instances
+    goI (ClassI _ instances) = return . M.fromList . mapMaybe goD $ instances
     goI unknown = unknownDecl unknown
-    goD (InstanceD _cxt (AppT _insT a) _defs) = return a
-    goD unknown = unknownDecl unknown
+    goD (InstanceD _cxt (AppT _insT a@(ConT n)) _defs) = Just (n, return a)
+    goD _ = Nothing
 
 derivePersistableInstancesFromPersistFieldInstances
     :: [String] -- ^ blacklist types
@@ -238,8 +238,8 @@ derivePersistableInstancesFromPersistFieldInstances blacklist = do
     types <- persistValueTypesFromPersistFieldInstances blacklist
     pwts <- persistableWidthTypes
     ftsql <- concatMapTypes defineFromToSqlPersistValue types
-    ws <- concatMapTypes deriveNotNullType $ types `Set.difference` pwts
+    ws <- concatMapTypes deriveNotNullType $ types `M.difference` pwts
     return $ ftsql ++ ws
   where
-    concatMapTypes :: (Q Type -> Q [Dec]) -> Set.Set Type -> Q [Dec]
-    concatMapTypes f = fmap concat . mapM (f . return) . Set.toList
+    concatMapTypes :: (Q Type -> Q [Dec]) -> M.Map Name TypeQ -> Q [Dec]
+    concatMapTypes f = fmap concat . mapM f . M.elems
