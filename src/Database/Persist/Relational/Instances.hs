@@ -12,11 +12,9 @@ module Database.Persist.Relational.Instances
 #if __GLASGOW_HASKELL__ < 710
 import Control.Applicative
 #endif
-import qualified Data.Text as T
 import Database.Persist
 import Database.Persist.Relational.TH
 import Database.Record.FromSql
-import Database.Record.Persistable
 import Database.Record.ToSql
 import Database.Relational.Query (ProductConstructor (..))
 
@@ -33,16 +31,5 @@ instance (ToSql PersistValue (Key record), ToSql PersistValue record)
 instance (PersistEntity record, FromSql PersistValue (Key record), FromSql PersistValue record)
          => FromSql PersistValue (Entity record) where
     recordFromSql = Entity <$> recordFromSql <*> recordFromSql
-
-instance PersistableType PersistValue where
-    persistableType = unsafePersistableSqlTypeFromNull PersistNull
-
-instance PersistField a => PersistableValue PersistValue a where
-    persistableValue = persistableSqlValue persistableType unsafeFromPersistValue toPersistValue
-      where
-        unsafeFromPersistValue v =
-            case fromPersistValue v of
-                Left err -> error $ T.unpack err
-                Right a -> a
 
 derivePersistableInstancesFromPersistFieldInstances ["SomePersistField"]

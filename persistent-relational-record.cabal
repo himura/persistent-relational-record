@@ -31,7 +31,7 @@ library
                      , containers
                      , mtl
                      , names-th
-                     , persistable-record
+                     , persistable-record >= 0.4
                      , persistent
                      , relational-query
                      , resourcet

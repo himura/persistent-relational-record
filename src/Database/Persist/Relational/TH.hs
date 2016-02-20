@@ -200,11 +200,17 @@ defineFromToSqlPersistValue :: TypeQ -> Q [Dec]
 defineFromToSqlPersistValue typ = do
     fromSqlI <-
         [d| instance FromSql PersistValue $typ where
-                recordFromSql = valueFromSql |]
+                recordFromSql = valueRecordFromSql unsafePersistValueFromSql |]
     toSqlI <-
         [d| instance ToSql PersistValue $typ where
-                recordToSql = valueToSql |]
+                recordToSql = valueRecordToSql toPersistValue |]
     return $ fromSqlI ++ toSqlI
+
+unsafePersistValueFromSql :: PersistField a => PersistValue -> a
+unsafePersistValueFromSql v =
+    case fromPersistValue v of
+        Left err -> error $ T.unpack err
+        Right a -> a
 
 persistValueTypesFromPersistFieldInstances
     :: [String] -- ^ blacklist types
