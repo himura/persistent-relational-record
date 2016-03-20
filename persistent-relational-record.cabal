@@ -41,6 +41,7 @@ library
   exposed-modules:     Database.Persist.Relational
                        Database.Persist.Relational.Instances
                        Database.Persist.Relational.TH
+                       Database.Persist.Relational.ToPersistEntity
   ghc-options:         -Wall
 
 test-suite unittest

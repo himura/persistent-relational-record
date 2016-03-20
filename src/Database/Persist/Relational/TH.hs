@@ -12,6 +12,7 @@ import Data.Maybe
 import qualified Data.Text as T
 import Database.Persist
 import Database.Persist.Quasi
+import Database.Persist.Relational.ToPersistEntity
 import qualified Database.Persist.Sql as PersistSql
 import Database.Record (PersistableWidth (..))
 import Database.Record.FromSql
@@ -103,6 +104,11 @@ defineFromToSqlPersistValue typ = do
                 recordToSql = valueRecordToSql toPersistValue |]
     return $ fromSqlI ++ toSqlI
 
+deriveTrivialToPersistEntity :: TypeQ -> Q [Dec]
+deriveTrivialToPersistEntity typ =
+    [d| instance ToPersistEntity $typ $typ where
+            recordFromSql' = recordFromSql |]
+
 unsafePersistValueFromSql :: PersistField a => PersistValue -> a
 unsafePersistValueFromSql v =
     case fromPersistValue v of
@@ -141,8 +147,9 @@ derivePersistableInstancesFromPersistFieldInstances blacklist = do
     types <- persistValueTypesFromPersistFieldInstances blacklist
     pwts <- persistableWidthTypes
     ftsql <- concatMapTypes defineFromToSqlPersistValue types
+    toER <- concatMapTypes deriveTrivialToPersistEntity types
     ws <- concatMapTypes deriveNotNullType $ types `M.difference` pwts
-    return $ ftsql ++ ws
+    return $ ftsql ++ toER ++ ws
   where
     concatMapTypes :: (Q Type -> Q [Dec]) -> M.Map Name TypeQ -> Q [Dec]
     concatMapTypes f = fmap concat . mapM f . M.elems
