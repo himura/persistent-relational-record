@@ -7,8 +7,8 @@ module Database.Persist.Relational.TH
        where
 
 import Data.Int
-import Data.Maybe
 import qualified Data.Map as M
+import Data.Maybe
 import qualified Data.Text as T
 import Database.Persist
 import Database.Persist.Quasi
@@ -73,8 +73,7 @@ mkHrrInstances entities =
     concat `fmap` mapM mkHrrInstancesEachEntityDef entities
 
 mkHrrInstancesEachEntityDef :: EntityDef -> Q [Dec]
-mkHrrInstancesEachEntityDef entity =
-    mkPersistablePrimaryKey . entityId $ entity
+mkHrrInstancesEachEntityDef = mkPersistablePrimaryKey . entityId
 
 mkPersistablePrimaryKey :: FieldDef -> Q [Dec]
 mkPersistablePrimaryKey fd = do
