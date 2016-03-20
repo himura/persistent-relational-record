@@ -5,7 +5,7 @@
 module Fixtures.BlogSample.PostTag where
 
 import Database.Persist.Relational
-import Fixtures.BlogSample.Model
+import Fixtures.BlogSample.Model hiding (PostTag)
 
 defineTableFromPersistent "post_tag" db
 

@@ -5,6 +5,6 @@
 module ImageTag where
 
 import Database.Persist.Relational
-import Model
+import Model hiding (ImageTag)
 
 defineTableFromPersistent "image_tag" db

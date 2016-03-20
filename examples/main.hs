@@ -1,5 +1,7 @@
 {-# LANGUAGE MonadComprehensions #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 import Control.Monad.Base
 import Control.Monad.Logger
@@ -24,7 +26,7 @@ import Types
 selectImageByTagNameList
     :: Bool -- ^ match any
     -> [Text] -- ^ list of tag name
-    -> Relation () (Entity Image)
+    -> Relation () Image.Image
 selectImageByTagNameList matchAny tagNames = relation $ do
     img <- query Image.image
     imgids <- query $ imageIdFromTagNameList matchAny tagNames
@@ -59,7 +61,7 @@ imageIdFromTagNameList matchAny tagNames =
             else c .=. value (fromIntegral . length $ tagNames)
     ]
 
-tagListOfImage :: Relation ImageId (Entity Tag)
+tagListOfImage :: Relation ImageId Tag.Tag
 tagListOfImage = relation' $ placeholder $ \ph -> do
     tag <- query Tag.tag
     imgtag <- query ImageTag.imageTag
