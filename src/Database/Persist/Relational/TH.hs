@@ -7,6 +7,7 @@ module Database.Persist.Relational.TH
        where
 
 import Data.Int
+import Data.List
 import qualified Data.Map as M
 import Data.Maybe
 import qualified Data.Text as T
@@ -16,7 +17,7 @@ import Database.Persist.Relational.ToPersistEntity
 import qualified Database.Persist.Sql as PersistSql
 import Database.Record (PersistableWidth (..))
 import Database.Record.FromSql
-import Database.Record.TH (deriveNotNullType, makeRecordPersistableWithSqlTypeDefault)
+import Database.Record.TH (deriveNotNullType, makeRecordPersistableWithSqlTypeDefault, recordType)
 import Database.Record.ToSql
 import Database.Relational.Query hiding ((!))
 import Database.Relational.Query.TH (defineTable, defineScalarDegree)
@@ -39,11 +40,12 @@ makeColumns t =
     mkCol fd = (toS $ fieldDB fd, mkFieldType fd)
     toS = T.unpack . unDBName
 
-defineTableFromPersistentWithConfig :: Config -> String -> String -> [EntityDef] -> Q [Dec]
-defineTableFromPersistentWithConfig config schema tableName entities =
+defineTableFromPersistentWithConfig :: Config -> String -> String -> Name -> [EntityDef] -> Q [Dec]
+defineTableFromPersistentWithConfig config schema tableName persistentRecordName entities =
     case filter ((== tableName) . T.unpack . unDBName . entityDB) entities of
         (t:_) -> do
             let columns = makeColumns t
+                width = length columns
             tblD <- defineTable
                         config
                         schema
@@ -52,15 +54,26 @@ defineTableFromPersistentWithConfig config schema tableName entities =
                         (map (mkName . T.unpack) . entityDerives $ t)
                         [0]
                         (Just 0)
-            sqlD <- makeRecordPersistableWithSqlTypeDefault [t| PersistValue |] schema tableName $ length columns
-            return $ tblD ++ sqlD
+            sqlD <- makeRecordPersistableWithSqlTypeDefault [t| PersistValue |] schema tableName width
+            entI <- makeToPersistEntityInstance config schema tableName persistentRecordName width
+            return $ tblD ++ sqlD ++ entI
         _ -> error $ "makeColumns: Table " ++ tableName ++ " not found"
 
-defineTableFromPersistent :: String -> [EntityDef] -> Q [Dec]
+defineTableFromPersistent :: String -> Name -> [EntityDef] -> Q [Dec]
 defineTableFromPersistent =
     defineTableFromPersistentWithConfig
         defaultConfig { schemaNameMode = SchemaNotQualified }
         (error "defineTableFromPersistent: schema name must not be used")
+
+makeToPersistEntityInstance :: Config -> String -> String -> Name -> Int -> Q [Dec]
+makeToPersistEntityInstance config schema tableName persistentRecordName width = do
+    (typName, dataConName) <- recType <$> reify persistentRecordName
+    deriveToPersistEntityForRecord hrrRecordType (conT typName, conE dataConName) width
+  where
+    recType (TyConI (DataD _ tName [] [RecC dcName _] _)) = (tName, dcName)
+    recType info = error $ "makeToPersistEntityInstance: unexpected record info " ++ show info
+
+    hrrRecordType = recordType (recordConfig . nameConfig $ config) schema tableName
 
 maybeNullable :: FieldDef -> Bool
 maybeNullable fd = nullable (fieldAttrs fd) == Nullable ByMaybeAttr
@@ -108,6 +121,13 @@ deriveTrivialToPersistEntity :: TypeQ -> Q [Dec]
 deriveTrivialToPersistEntity typ =
     [d| instance ToPersistEntity $typ $typ where
             recordFromSql' = recordFromSql |]
+
+deriveToPersistEntityForRecord :: TypeQ -> (TypeQ, ExpQ) -> Int -> Q [Dec]
+deriveToPersistEntityForRecord hrrTyp (pTyp, pCon) width =
+    [d| instance ToPersistEntity $hrrTyp (Entity $pTyp) where
+            recordFromSql' = Entity <$> recordFromSql <*> $rfsql |]
+  where
+    rfsql = foldl' (\s a -> [| $s <*> $a |]) [| pure $pCon |] $ replicate (width - 1) [| recordFromSql |]
 
 unsafePersistValueFromSql :: PersistField a => PersistValue -> a
 unsafePersistValueFromSql v =
