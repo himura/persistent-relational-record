@@ -29,7 +29,6 @@ runQuery :: ( MonadResource m
             , MonadReader env m
             , HasPersistBackend env SqlBackend
             , ToSql PersistValue p
-            , FromSql PersistValue a
             , ToPersistEntity a b
             )
          => Query p a

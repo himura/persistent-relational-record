@@ -17,7 +17,7 @@ import Database.Persist.Relational.ToPersistEntity
 import qualified Database.Persist.Sql as PersistSql
 import Database.Record (PersistableWidth (..))
 import Database.Record.FromSql
-import Database.Record.TH (deriveNotNullType, makeRecordPersistableWithSqlTypeDefault, recordType)
+import Database.Record.TH (deriveNotNullType, recordType)
 import Database.Record.ToSql
 import Database.Relational.Query hiding ((!))
 import Database.Relational.Query.TH (defineTable, defineScalarDegree)
@@ -60,9 +60,8 @@ defineTableFromPersistentWithConfig config schema tableName persistentRecordName
                         (map (mkName . T.unpack) . entityDerives $ t)
                         [0]
                         (Just 0)
-            sqlD <- makeRecordPersistableWithSqlTypeDefault [t| PersistValue |] schema tableName width
             entI <- makeToPersistEntityInstance config schema tableName persistentRecordName width
-            return $ tblD ++ sqlD ++ entI
+            return $ tblD ++ entI
         _ -> error $ "makeColumns: Table " ++ tableName ++ " not found"
 
 defineTableFromPersistent
