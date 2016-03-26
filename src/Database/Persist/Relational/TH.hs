@@ -63,7 +63,7 @@ defineTableFromPersistent :: String -> Name -> [EntityDef] -> Q [Dec]
 defineTableFromPersistent =
     defineTableFromPersistentWithConfig
         defaultConfig { schemaNameMode = SchemaNotQualified }
-        (error "defineTableFromPersistent: schema name must not be used")
+        (error "[bug] Database.Persist.Relational.TH.defineTableFromPersistent: schema name must not be used")
 
 makeToPersistEntityInstance :: Config -> String -> String -> Name -> Int -> Q [Dec]
 makeToPersistEntityInstance config schema tableName persistentRecordName width = do
