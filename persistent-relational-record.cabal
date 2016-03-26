@@ -26,11 +26,9 @@ flag test-examples
 library
   hs-source-dirs:      src
   build-depends:       base >= 4.7 && < 5
-                     , array
                      , conduit
                      , containers
                      , mtl
-                     , names-th
                      , persistable-record >= 0.4
                      , persistent
                      , relational-query >= 0.8.1
