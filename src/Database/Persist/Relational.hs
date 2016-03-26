@@ -22,7 +22,7 @@ import Database.Persist.Relational.TH
 import Database.Persist.Relational.ToPersistEntity
 import Database.Persist.Sql (SqlBackend)
 import qualified Database.Persist.Sql as PersistSql
-import Database.Record (FromSql, ToSql, recordToSql, runFromRecord, runToRecord)
+import Database.Record (ToSql, recordToSql, runFromRecord, runToRecord)
 import Database.Relational.Query
 
 runQuery :: ( MonadResource m
