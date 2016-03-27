@@ -56,7 +56,6 @@ defineTableFromPersistentWithConfig config schema tableName persistentRecordName
     case filter ((== tableName) . T.unpack . unDBName . entityDB) entities of
         (t:_) -> do
             let columns = makeColumns t
-                width = length columns
             tblD <- defineTable
                         config
                         schema
@@ -65,7 +64,7 @@ defineTableFromPersistentWithConfig config schema tableName persistentRecordName
                         (map (mkName . T.unpack) . entityDerives $ t)
                         [0]
                         (Just 0)
-            entI <- makeToPersistEntityInstance config schema tableName persistentRecordName width
+            entI <- makeToPersistEntityInstance config schema tableName persistentRecordName columns
             return $ tblD ++ entI
         _ -> error $ "makeColumns: Table " ++ tableName ++ " not found"
 
@@ -79,10 +78,10 @@ defineTableFromPersistent =
         defaultConfig { schemaNameMode = SchemaNotQualified }
         (error "[bug] Database.Persist.Relational.TH.defineTableFromPersistent: schema name must not be used")
 
-makeToPersistEntityInstance :: Config -> String -> String -> Name -> Int -> Q [Dec]
-makeToPersistEntityInstance config schema tableName persistentRecordName width = do
+makeToPersistEntityInstance :: Config -> String -> String -> Name -> [(String, TypeQ)] -> Q [Dec]
+makeToPersistEntityInstance config schema tableName persistentRecordName columns = do
     (typName, dataConName) <- recType <$> reify persistentRecordName
-    deriveToPersistEntityForRecord hrrRecordType (conT typName, conE dataConName) width
+    deriveToPersistEntityForRecord hrrRecordType (conT typName, conE dataConName) columns
   where
     recType (TyConI (DataD _ tName [] [RecC dcName _] _)) = (tName, dcName)
     recType info = error $ "makeToPersistEntityInstance: unexpected record info " ++ show info
@@ -136,12 +135,14 @@ deriveTrivialToPersistEntity typ =
     [d| instance ToPersistEntity $typ $typ where
             recordFromSql' = recordFromSql |]
 
-deriveToPersistEntityForRecord :: TypeQ -> (TypeQ, ExpQ) -> Int -> Q [Dec]
-deriveToPersistEntityForRecord hrrTyp (pTyp, pCon) width =
+deriveToPersistEntityForRecord :: TypeQ -> (TypeQ, ExpQ) -> [(String, TypeQ)] -> Q [Dec]
+deriveToPersistEntityForRecord hrrTyp (pTyp, pCon) ((_, pKeyTyp):columns) =
     [d| instance ToPersistEntity $hrrTyp (Entity $pTyp) where
-            recordFromSql' = Entity <$> recordFromSql <*> $rfsql |]
+            recordFromSql' = Entity <$> (recordFromSql :: RecordFromSql PersistValue $pKeyTyp) <*> $rfsql |]
   where
-    rfsql = foldl' (\s a -> [| $s <*> $a |]) [| pure $pCon |] $ replicate (width - 1) [| recordFromSql |]
+    fields = map (\(_, typ) -> [| recordFromSql :: RecordFromSql PersistValue $typ |]) columns
+    rfsql = foldl' (\s a -> [| $s <*> $a |]) [| pure $pCon |] fields
+deriveToPersistEntityForRecord _ _ [] = fail "deriveToPersistEntityForRecord: missing columns"
 
 unsafePersistValueFromSql :: PersistField a => PersistValue -> a
 unsafePersistValueFromSql v =
