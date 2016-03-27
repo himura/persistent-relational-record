@@ -28,6 +28,12 @@ import Database.Relational.Query hiding ((!))
 import Database.Relational.Query.TH (defineTable, defineScalarDegree)
 import Language.Haskell.TH
 
+data TableData = TableData
+    { persistentRecordName :: Name
+    , columns :: [(String, TypeQ)]
+    , derives :: [Name]
+    }
+
 ftToType :: FieldType -> TypeQ
 ftToType (FTTypeCon Nothing t) = conT $ mkName $ T.unpack t
 -- This type is generated from the Quasi-Quoter.
@@ -78,6 +84,28 @@ defineTableFromPersistent =
         defaultConfig { schemaNameMode = SchemaNotQualified }
         (error "[bug] Database.Persist.Relational.TH.defineTableFromPersistent: schema name must not be used")
 
+defineTableFromPersistent'
+    :: String                   -- ^ Table name
+    -> [(String, TableData)]
+    -> Q [Dec]
+defineTableFromPersistent' tableName tables =
+    case lookup tableName tables of
+        Just TableData{..} -> do
+            tblD <- defineTable
+                        config
+                        schema
+                        tableName
+                        columns
+                        derives
+                        [0]
+                        (Just 0)
+            entI <- makeToPersistEntityInstance config schema tableName persistentRecordName columns
+            return $ tblD ++ entI
+        Nothing -> error $ "defineTableFromPersistent: Table " ++ tableName ++ " not found"
+  where
+    config = defaultConfig { schemaNameMode = SchemaNotQualified }
+    schema = error "not use"
+
 makeToPersistEntityInstance :: Config -> String -> String -> Name -> [(String, TypeQ)] -> Q [Dec]
 makeToPersistEntityInstance config schema tableName persistentRecordName columns = do
     (typName, dataConName) <- recType <$> reify persistentRecordName
@@ -98,6 +126,9 @@ maybeTyp may typ | may = conT ''Maybe `appT` typ
 mkHrrInstances :: [EntityDef] -> Q [Dec]
 mkHrrInstances entities =
     concat `fmap` mapM mkHrrInstancesEachEntityDef entities
+
+-- mkTableData :: [EntityDef] -> Q [Dec]
+-- mkTableData entities = do
 
 mkHrrInstancesEachEntityDef :: EntityDef -> Q [Dec]
 mkHrrInstancesEachEntityDef = mkPersistablePrimaryKey . entityId

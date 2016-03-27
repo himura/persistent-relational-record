@@ -6,9 +6,11 @@ module Database.Persist.Relational
        , rawQuery
        , mkHrrInstances
        , defineTableFromPersistent
+       , defineTableFromPersistent'
        , defineFromToSqlPersistValue
        , defaultConfig
        , ToPersistEntity (..)
+       , TableData (..)
        ) where
 
 import Control.Monad.Reader (MonadReader)

@@ -11,9 +11,10 @@ module Model where
 import Data.ByteString (ByteString)
 import Data.Text (Text)
 import Data.Time (UTCTime)
-import Database.Persist.Relational (mkHrrInstances)
+import Database.Persist.Relational
 import Database.Persist.TH
 import Types
+import Language.Haskell.TH
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll", mkSave "db", mkHrrInstances] [persistLowerCase|
 Image
@@ -33,3 +34,16 @@ ImageTag
     UniqueImageTag imageId tagId
     deriving Show Eq
 |]
+
+hoge :: [(String, TableData)]
+hoge = [("image", TableData
+                      ''Image
+                      [ ("id", conT ''ImageId)
+                      , ("hash", conT ''ByteString)
+                      , ("type", conT ''ImageType)
+                      , ("created_at", conT ''UTCTime)
+                      , ("changed_at", conT ''UTCTime)
+                      ]
+                      [''Show, ''Eq]
+        )
+       ]
