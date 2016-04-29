@@ -108,7 +108,8 @@ mkPersistablePrimaryKey fd = do
     persistableD <- defineFromToSqlPersistValue typ
     scalarDegD <- defineScalarDegree typ
     showCTermSQLD <- mkShowConstantTermsSQL typ
-    return $ notNullD ++ persistableD ++ scalarDegD ++ showCTermSQLD
+    toPersistEntityD <- deriveTrivialToPersistEntity typ
+    return $ notNullD ++ persistableD ++ scalarDegD ++ showCTermSQLD ++ toPersistEntityD
   where
     typ = mkFieldType fd
 

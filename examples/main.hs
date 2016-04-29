@@ -99,6 +99,10 @@ sample = do
         runQuery (relationalQuery $ selectImageByTagNameList False ["shinku"]) ()
         $$ CL.mapM_ (liftBase . print)
 
+    runResourceT $
+        runQuery (relationalQuery $ imageIdFromTagNameList True ["shinku", "mare"]) ()
+        $$ CL.mapM_ (liftBase . print)
+
     mimg <- getBy $ UniqueImageHash "11eb1ee2b8f9b471f15d85fb784a8fd6"
     case mimg of
         Just (Entity k _) ->
