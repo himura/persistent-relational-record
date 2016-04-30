@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MonadComprehensions #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -6,8 +7,10 @@
 import Control.Monad.Base
 import Control.Monad.Logger
 import Control.Monad.Trans.Resource
+import Data.ByteString (ByteString)
 import Data.Conduit
 import qualified Data.Conduit.List as CL
+import Data.Maybe
 import Data.Text (Text)
 import Data.Time
 import Database.Persist
@@ -15,7 +18,6 @@ import Database.Persist.MySQL
 import Database.Persist.Relational
 import Database.Relational.Query as HRR hiding (fromMaybe)
 import System.Environment
-import Data.Maybe
 
 import qualified Image
 import qualified ImageTag
@@ -76,12 +78,22 @@ addImages tagId images = do
     imgIds <- mapM insert images
     mapM_ (\imgId -> insert $ ImageTag imgId tagId) imgIds
 
+printImage :: ByteString -> SqlPersistT (LoggingT IO) ()
+printImage hkey =
+    getBy (UniqueImageHash hkey) >>= \case
+        Just (Entity k val) -> do
+            liftBase $ print val
+            runResourceT $
+                runQuery (relationalQuery tagListOfImage) k
+                $$ CL.mapM_ (liftBase . print)
+        Nothing -> liftBase $ putStrLn "Image not found"
+
 sample :: SqlPersistT (LoggingT IO) ()
 sample = do
     runMigration migrateAll
     now <- liftBase getCurrentTime
 
-    tagShinkuId <- insert $ Tag "shinku"
+    tagShinkuId <- insert $ Tag "shinku" (Just "二階堂真紅")
     addImages tagShinkuId
         [ Image "4f4221435f9c5c430db2b093c91b8f1f" PNG now now
         , Image "11eb1ee2b8f9b471f15d85fb784a8fd6" PNG now now
@@ -89,7 +101,7 @@ sample = do
         , Image "e10f6af40a80a7f5794ea0bdc66d4ae3" PNG now now
         ]
 
-    tagMareId <- insert $ Tag "mare"
+    tagMareId <- insert $ Tag "mare" Nothing
     addImages tagMareId
         [ Image "fbc717314b90afe6819d4593c583109a" PNG now now
         , Image "dc593d1c551f2a1ea85c2dc5521c7fdf" PNG now now
@@ -103,13 +115,8 @@ sample = do
         runQuery (relationalQuery $ imageIdFromTagNameList True ["shinku", "mare"]) ()
         $$ CL.mapM_ (liftBase . print)
 
-    mimg <- getBy $ UniqueImageHash "11eb1ee2b8f9b471f15d85fb784a8fd6"
-    case mimg of
-        Just (Entity k _) ->
-            runResourceT $
-                runQuery (relationalQuery tagListOfImage) k
-                $$ CL.mapM_ (liftBase . print)
-        Nothing -> liftBase $ putStrLn "Image not found"
+    printImage "11eb1ee2b8f9b471f15d85fb784a8fd6"
+    printImage "fbc717314b90afe6819d4593c583109a"
 
 getConnectInfo :: IO ConnectInfo
 getConnectInfo = do

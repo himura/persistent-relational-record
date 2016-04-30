@@ -25,6 +25,7 @@ Image
     deriving Show Eq
 Tag
     name       Text
+    description Text Maybe
     UniqueTagName name
     deriving Show Eq
 ImageTag
