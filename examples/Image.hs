@@ -12,4 +12,4 @@ import Model hiding (Image)
 import qualified Model
 import Types
 
-defineTableFromPersistent "image" ''Model.Image db
+defineTableFromPersistent ''Model.Image db

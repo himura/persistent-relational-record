@@ -9,5 +9,5 @@ import Database.Persist.Relational
 import Fixtures.BlogSample.Model hiding (PostTag)
 import qualified Fixtures.BlogSample.Model as Model
 
-defineTableFromPersistent "post_tag" ''Model.PostTag db
+defineTableFromPersistent ''Model.PostTag db
 

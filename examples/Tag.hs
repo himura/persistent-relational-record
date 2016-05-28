@@ -10,4 +10,4 @@ import Database.Persist.Relational
 import qualified Model
 import Model hiding (Tag)
 
-defineTableFromPersistent "tag" ''Model.Tag db
+defineTableFromPersistent ''Model.Tag db
