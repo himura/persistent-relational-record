@@ -2,7 +2,5 @@ resolver: lts-6.0
 packages:
 - '.'
 extra-deps: []
-flags:
-  persistent-relational-record:
-    test-examples: True
+flags: {}
 extra-package-dbs: []
