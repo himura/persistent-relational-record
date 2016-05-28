@@ -9,4 +9,4 @@ import Database.Persist.Relational
 import Model hiding (ImageTag)
 import qualified Model
 
-defineTableFromPersistent "image_tag" ''Model.ImageTag db
+defineTableFromPersistent ''Model.ImageTag db

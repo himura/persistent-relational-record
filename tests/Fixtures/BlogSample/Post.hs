@@ -11,5 +11,5 @@ import Database.Persist.Relational
 import Fixtures.BlogSample.Model hiding (Post)
 import qualified Fixtures.BlogSample.Model as Model
 
-defineTableFromPersistent "post" ''Model.Post db
+defineTableFromPersistent ''Model.Post db
 

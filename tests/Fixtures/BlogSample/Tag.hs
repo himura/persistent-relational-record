@@ -10,5 +10,5 @@ import Database.Persist.Relational
 import Fixtures.BlogSample.Model hiding (Tag)
 import qualified Fixtures.BlogSample.Model as Model
 
-defineTableFromPersistent "tag" ''Model.Tag db
+defineTableFromPersistent ''Model.Tag db
 

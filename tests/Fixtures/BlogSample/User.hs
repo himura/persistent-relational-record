@@ -10,5 +10,5 @@ import Database.Persist.Relational
 import Fixtures.BlogSample.Model hiding (User)
 import qualified Fixtures.BlogSample.Model as Model
 
-defineTableFromPersistent "user" ''Model.User db
+defineTableFromPersistent ''Model.User db
 
