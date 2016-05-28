@@ -7,6 +7,8 @@ module Database.Persist.Relational
        , mkHrrInstances
        , defineTableFromPersistent
        , defineFromToSqlPersistValue
+       , defaultConfig
+       , ToPersistEntity (..)
        ) where
 
 import Control.Monad.Reader (MonadReader)
@@ -17,21 +19,22 @@ import qualified Data.Text as T
 import Database.Persist
 import Database.Persist.Relational.Instances ()
 import Database.Persist.Relational.TH
+import Database.Persist.Relational.ToPersistEntity
 import Database.Persist.Sql (SqlBackend)
 import qualified Database.Persist.Sql as PersistSql
-import Database.Record (FromSql, ToSql, recordFromSql, recordToSql, runFromRecord, runToRecord)
+import Database.Record (ToSql, recordToSql, runFromRecord, runToRecord)
 import Database.Relational.Query
 
 runQuery :: ( MonadResource m
             , MonadReader env m
             , HasPersistBackend env SqlBackend
             , ToSql PersistValue p
-            , FromSql PersistValue a
+            , ToPersistEntity a b
             )
          => Query p a
          -> p
-         -> Source m a
-runQuery q vals = rawQuery q vals $= CL.map (runToRecord recordFromSql)
+         -> Source m b
+runQuery q vals = rawQuery q vals $= CL.map (runToRecord recordFromSql')
 
 rawQuery :: ( MonadResource m
             , MonadReader env m

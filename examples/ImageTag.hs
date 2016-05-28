@@ -1,10 +1,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module ImageTag where
 
 import Database.Persist.Relational
-import Model
+import Model hiding (ImageTag)
+import qualified Model
 
-defineTableFromPersistent "image_tag" db
+defineTableFromPersistent "image_tag" ''Model.ImageTag db

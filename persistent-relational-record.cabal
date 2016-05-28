@@ -26,14 +26,12 @@ flag test-examples
 library
   hs-source-dirs:      src
   build-depends:       base >= 4.7 && < 5
-                     , array
                      , conduit
                      , containers
                      , mtl
-                     , names-th
                      , persistable-record >= 0.4
                      , persistent
-                     , relational-query
+                     , relational-query >= 0.8.1
                      , resourcet
                      , template-haskell
                      , text
@@ -41,6 +39,7 @@ library
   exposed-modules:     Database.Persist.Relational
                        Database.Persist.Relational.Instances
                        Database.Persist.Relational.TH
+                       Database.Persist.Relational.ToPersistEntity
   ghc-options:         -Wall
 
 test-suite unittest
