@@ -6,6 +6,7 @@ module Database.Persist.Relational
        , rawQuery
        , mkHrrInstances
        , defineTableFromPersistent
+       , defineTableFromPersistentWithConfig
        , defineFromToSqlPersistValue
        , defaultConfig
        , ToPersistEntity (..)
