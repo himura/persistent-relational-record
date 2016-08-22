@@ -84,7 +84,11 @@ makeToPersistEntityInstance config schema tableName persistentRecordName columns
     (typName, dataConName) <- recType <$> reify persistentRecordName
     deriveToPersistEntityForRecord hrrRecordType (conT typName, conE dataConName) columns
   where
+#if MIN_VERSION_template_haskell(2, 11, 0)
+    recType (TyConI (DataD _ tName [] _ [RecC dcName _] _)) = (tName, dcName)
+#else
     recType (TyConI (DataD _ tName [] [RecC dcName _] _)) = (tName, dcName)
+#endif
     recType info = error $ "makeToPersistEntityInstance: unexpected record info " ++ show info
 
     hrrRecordType = recordType (recordConfig . nameConfig $ config) schema tableName
@@ -162,7 +166,11 @@ persistValueTypesFromPersistFieldInstances blacklist = do
        ClassI _ instances -> return . M.fromList $ mapMaybe (go pfT) instances
        unknown -> fail $ "persistValueTypesFromPersistFieldInstances: unknown declaration: " ++ show unknown
   where
+#if MIN_VERSION_template_haskell(2, 11, 0)
+    go pfT (InstanceD _ [] (AppT insT t@(ConT n)) [])
+#else
     go pfT (InstanceD [] (AppT insT t@(ConT n)) [])
+#endif
            | insT == pfT
           && nameBase n `notElem` blacklist = Just (n, return t)
     go _ _ = Nothing
@@ -174,7 +182,11 @@ persistableWidthTypes =
     unknownDecl decl = fail $ "persistableWidthTypes: Unknown declaration: " ++ show decl
     goI (ClassI _ instances) = return . M.fromList . mapMaybe goD $ instances
     goI unknown = unknownDecl unknown
+#if MIN_VERSION_template_haskell(2, 11, 0)
+    goD (InstanceD _ _cxt (AppT _insT a@(ConT n)) _defs) = Just (n, return a)
+#else
     goD (InstanceD _cxt (AppT _insT a@(ConT n)) _defs) = Just (n, return a)
+#endif
     goD _ = Nothing
 
 derivePersistableInstancesFromPersistFieldInstances
