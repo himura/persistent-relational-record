@@ -56,7 +56,7 @@ test-suite unittest
                      , text
                      , time
                      , persistent-relational-record
-  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N -O2 -fsimpl-tick-factor=120
+  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N -O2 -fsimpl-tick-factor=200
   default-language:    Haskell2010
   other-modules:       Fixtures.BlogSample.Model
                        Fixtures.BlogSample.User
