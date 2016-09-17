@@ -1,0 +1,13 @@
+resolver: lts-7.0
+packages:
+- '.'
+- location:
+    git: https://github.com/mchaver/mysql.git
+    commit: 87c8048fe5149ecaf3825b1e05f41ecf25ba051e
+extra-deps:
+- persistent-mysql-2.6
+- mysql-simple-0.2.2.5
+flags:
+  persistent-relational-record:
+    test-examples: True
+extra-package-dbs: []
