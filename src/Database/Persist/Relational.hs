@@ -124,26 +124,22 @@ import Database.Relational.Query
 --     :: Bool -- ^ match any
 --     -> [Text] -- ^ list of tag name
 --     -> Relation () ImageId
--- imageIdFromTagNameList matchAny tagNames =
---     aggregateRelation
---     [ g
---     | imgtag <- query $ ImageTag.imageTag
---     , tag <- query $ Tag.tag
---     , () <- on $ tag ! Tag.id' .=. imgtag ! ImageTag.tagId'
---     , () <- wheres $ tag ! Tag.name' `in'` values tagNames
---     , g <- groupBy $ imgtag ! ImageTag.imageId'
---     , let c = HRR.count $ imgtag ! ImageTag.imageId'
---     , () <- having $
---             if matchAny
---             then c .>. value (0 :: Int)
---             else c .=. value (fromIntegral . length $ tagNames)
---     ]
+-- imageIdFromTagNameList matchAny tagNames = aggregateRelation $
+--    imgtag <- query $ ImageTag.imageTag
+--    tag <- query $ Tag.tag
+--    on $ tag ! Tag.id' .=. imgtag ! ImageTag.tagId'
+--    wheres $ tag ! Tag.name' `in'` values tagNames
+--    g <- groupBy $ imgtag ! ImageTag.imageId'
+--    let c = HRR.count $ imgtag ! ImageTag.imageId'
+--    having $
+--        if matchAny
+--            then c .>. value (0 :: Int)
+--            else c .=. value (fromIntegral . length $ tagNames)
+--    return g
 --
--- run :: SqlPersistT (LoggingT IO) ()
--- run = do
---      runResourceT $
---          runQuery (relationalQuery $ imageByTagNameList False ["tokyo", "haskell"]) ()
---          $$ CL.mapM_ (liftBase . print)
+-- run :: SqlPersistT (LoggingT IO) [Entity Image]
+-- run = runResourceT $
+--     runQuery (relationalQuery $ imageByTagNameList False ["tokyo", "haskell"]) () $$ CL.consume
 -- @
 
 -- | Execute a HRR 'Query' and return the stream of its results.

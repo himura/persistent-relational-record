@@ -1,8 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MonadComprehensions #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 
 import Control.Monad.Base
 import Control.Monad.Logger
@@ -48,20 +45,18 @@ imageIdFromTagNameList
     :: Bool -- ^ match any
     -> [Text] -- ^ list of tag name
     -> Relation () ImageId
-imageIdFromTagNameList matchAny tagNames =
-    aggregateRelation
-    [ g
-    | imgtag <- query $ ImageTag.imageTag
-    , tag <- query $ Tag.tag
-    , () <- on $ tag ! Tag.id' .=. imgtag ! ImageTag.tagId'
-    , () <- wheres $ tag ! Tag.name' `in'` values tagNames
-    , g <- groupBy $ imgtag ! ImageTag.imageId'
-    , let c = HRR.count $ imgtag ! ImageTag.imageId'
-    , () <- having $
-            if matchAny
+imageIdFromTagNameList matchAny tagNames = aggregateRelation $ do
+    imgtag <- query $ ImageTag.imageTag
+    tag <- query $ Tag.tag
+    on $ tag ! Tag.id' .=. imgtag ! ImageTag.tagId'
+    wheres $ tag ! Tag.name' `in'` values tagNames
+    g <- groupBy $ imgtag ! ImageTag.imageId'
+    let c = HRR.count $ imgtag ! ImageTag.imageId'
+    having $
+        if matchAny
             then c .>. value (0 :: Int)
             else c .=. value (fromIntegral . length $ tagNames)
-    ]
+    return g
 
 tagListOfImage :: Relation ImageId Tag.Tag
 tagListOfImage = relation' $ placeholder $ \ph -> do
@@ -117,6 +112,12 @@ sample = do
 
     printImage "11eb1ee2b8f9b471f15d85fb784a8fd6"
     printImage "fbc717314b90afe6819d4593c583109a"
+
+    mapM_ (liftBase . print) =<< run
+
+run :: SqlPersistT (LoggingT IO) [Entity Image]
+run = runResourceT $
+    runQuery (relationalQuery $ selectImageByTagNameList False ["shinku", "mare"]) () $$ CL.consume
 
 getConnectInfo :: IO ConnectInfo
 getConnectInfo = do
