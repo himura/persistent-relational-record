@@ -14,10 +14,10 @@
 -- This module works as a bridge between <https://hackage.haskell.org/package/relational-query Haskell Relational Record>
 -- and <http://hackage.haskell.org/package/persistent Persistent>.
 -- It uses the persistent entities definition instead of obtaining schema from DB at compilation time.
+--
+-- See: https://github.com/himura/persistent-relational-record#readme
 module Database.Persist.Relational
-       ( -- * Getting Started
-         -- $GettingStarted
-         runQuery
+       ( runQuery
        , rawQuery
        , mkHrrInstances
        , defineTableFromPersistent
@@ -40,27 +40,6 @@ import Database.Persist.Sql (SqlBackend)
 import qualified Database.Persist.Sql as PersistSql
 import Database.Record (ToSql, recordToSql, runFromRecord, runToRecord)
 import Database.Relational.Query
-
--- $GettingStarted
---
--- If you already define an entities in persistent's manner, then you are almost ready to use this module.
--- The entities definition in the style of persistent-relational-record are shown below:
---
--- @
--- share [mkPersist sqlSettings, mkMigrate "migrateAll", mkSave "db", mkHrrInstances] [persistLowerCase|
--- Post
---     title      Text
---     deriving Eq Show
--- Tag
---     name       Text
---     deriving Eq Show
--- PostTag
---     postId     PostId
---     tagId      TagId
--- |]
--- @
---
--- The main difference is that @mkSave "db"@ and @mkHrrInstances@ has been added to the 1st argument of the @share@ function.
 
 -- | Execute a HRR 'Query' and return the stream of its results.
 runQuery :: ( MonadResource m
