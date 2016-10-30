@@ -15,7 +15,7 @@
 -- and <http://hackage.haskell.org/package/persistent Persistent>.
 -- It uses the persistent entities definition instead of obtaining schema from DB at compilation time.
 --
--- See: https://github.com/himura/persistent-relational-record#readme
+-- See: <https://github.com/himura/persistent-relational-record#readme>
 module Database.Persist.Relational
        ( runQuery
        , rawQuery
