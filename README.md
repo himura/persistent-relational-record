@@ -6,8 +6,8 @@ persistent-relational-record
 
 ## About ##
 
-persistent-relational-record build a bridge between <https://hackage.haskell.org/package/relational-query Haskell Relational Record>
-and <http://hackage.haskell.org/package/persistent Persistent>.
+persistent-relational-record build a bridge between [Haskell Relational Record](https://hackage.haskell.org/package/relational-query)
+and [Persistent](http://hackage.haskell.org/package/persistent).
 It uses the persistent entities definition instead of obtaining schema from DB at compilation time.
 
 ## Getting Started ##
