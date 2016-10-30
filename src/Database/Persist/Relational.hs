@@ -27,9 +27,9 @@ module Database.Persist.Relational
        , ToPersistEntity (..)
        ) where
 
-import Control.Monad.Reader (MonadReader)
-import Control.Monad.Trans.Resource (MonadResource)
-import Data.Conduit (Source, ($=))
+import Control.Monad.Reader
+import Control.Monad.Trans.Resource
+import Data.Conduit
 import qualified Data.Conduit.List as CL
 import qualified Data.Text as T
 import Database.Persist
@@ -57,6 +57,21 @@ runQuery :: ( MonadResource m
          -> p         -- ^ Parameter type
          -> Source m b
 runQuery q vals = rawQuery q vals $= CL.map (runToRecord recordFromSql')
+
+runQueryList
+    :: ( MonadResourceBase m
+       , MonadReader backend m
+#if MIN_VERSION_persistent(2, 5, 0)
+       , HasPersistBackend backend
+       , BaseBackend backend ~ SqlBackend
+#else
+       , HasPersistBackend backend SqlBackend
+#endif
+       , ToSql PersistValue p
+       , ToPersistEntity a b
+       )
+    => Query p a -> p -> ReaderT backend m [b]
+runQueryList q vals = runResourceT $ runQuery q vals $$ CL.consume
 
 rawQuery :: ( MonadResource m
             , MonadReader env m
