@@ -70,7 +70,7 @@ You should create "Tag.hs" and "ImageTag.hs" in the same manner.
 
 Now, you can build queries in manner of HRR:
 
-~~~~
+~~~~ {.haskell}
 module Query where
 
 import Data.Text (Text)
@@ -106,7 +106,7 @@ selectImageByTagNameList tagNames = relation $ do
 
 Finally, we can execute a query by runQuery:
 
-~~~~
+~~~~ {.haskell}
 {-# LANGUAGE OverloadedStrings #-}
 
 import Control.Monad.Base
