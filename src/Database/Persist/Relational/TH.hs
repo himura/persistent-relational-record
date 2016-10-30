@@ -87,13 +87,6 @@ makeToPersistEntityInstance config schema tableName persistentRecordName columns
 
     hrrRecordType = recordType (recordConfig . nameConfig $ config) schema tableName
 
-maybeNullable :: FieldDef -> Bool
-maybeNullable fd = nullable (fieldAttrs fd) == Nullable ByMaybeAttr
-
-maybeTyp :: Bool -> TypeQ -> TypeQ
-maybeTyp may typ | may = conT ''Maybe `appT` typ
-                 | otherwise = typ
-
 mkHrrInstances :: [EntityDef] -> Q [Dec]
 mkHrrInstances entities =
     concat `fmap` mapM mkHrrInstancesEachEntityDef entities
@@ -118,7 +111,12 @@ mkShowConstantTermsSQL typ =
            showConstantTermsSQL' = showConstantTermsSQL' . PersistSql.fromSqlKey|]
 
 mkFieldType :: FieldDef -> TypeQ
-mkFieldType fd = maybeTyp (maybeNullable fd) (ftToType . fieldType $ fd)
+mkFieldType fd =
+    case nullable . fieldAttrs $ fd of
+        Nullable ByMaybeAttr -> conT ''Maybe `appT` typ
+        _ -> typ
+  where
+    typ = ftToType . fieldType $ fd
 
 defineFromToSqlPersistValue :: TypeQ -> Q [Dec]
 defineFromToSqlPersistValue typ = do
