@@ -1,6 +1,9 @@
 persistent-relational-record
 ============================
 
+[![Travis](https://img.shields.io/travis/himura/persistent-relational-record/master.svg)](https://travis-ci.org/himura/persistent-relational-record)
+[![Hackage-Deps](https://img.shields.io/hackage-deps/v/persistent-relational-record.svg)](http://packdeps.haskellers.com/feed?needle=persistent-relational-record)
+
 ## About ##
 
 persistent-relational-record build a bridge between <https://hackage.haskell.org/package/relational-query Haskell Relational Record>
