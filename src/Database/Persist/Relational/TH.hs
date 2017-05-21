@@ -22,7 +22,13 @@ import Database.Persist.Relational.ToPersistEntity
 import qualified Database.Persist.Sql as PersistSql
 import Database.Record (PersistableWidth (..))
 import Database.Record.FromSql
-import Database.Record.TH (deriveNotNullType, recordType)
+import Database.Record.TH ( deriveNotNullType
+#if MIN_VERSION_persistable_record(0, 5, 0)
+                          , recordTemplate
+#else
+                          , recordType
+#endif
+                          )
 import Database.Record.ToSql
 import Database.Relational.Query hiding ((!))
 import Database.Relational.Query.TH (defineTable, defineScalarDegree)
@@ -91,7 +97,11 @@ makeToPersistEntityInstance config schema tableName persistentRecordName columns
 #endif
     recType info = error $ "makeToPersistEntityInstance: unexpected record info " ++ show info
 
+#if MIN_VERSION_persistable_record(0, 5, 0)
+    hrrRecordType = fst $ recordTemplate (recordConfig . nameConfig $ config) schema tableName
+#else
     hrrRecordType = recordType (recordConfig . nameConfig $ config) schema tableName
+#endif
 
 -- | Generate instances for haskell-relational-record.
 mkHrrInstances :: [EntityDef] -> Q [Dec]
