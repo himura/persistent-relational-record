@@ -54,6 +54,7 @@ To avoid the conflict of record field names, we recommend making one module per 
 Here is the content of "Image.hs":
 
 ~~~~ {.haskell}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
