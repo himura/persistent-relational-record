@@ -1,4 +1,4 @@
-resolver: lts-7.5
+resolver: __RESOLVER__
 packages:
 - '.'
 extra-deps:

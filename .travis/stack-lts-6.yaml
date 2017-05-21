@@ -1,4 +1,4 @@
-resolver: lts-6.23
+resolver: __RESOLVER__
 packages:
 - '.'
 extra-deps: []
