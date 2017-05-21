@@ -6,5 +6,7 @@ extra-deps:
 - persistable-record-0.5.0.1
 - relational-query-0.9.1.0
 - sql-words-0.1.4.1
+- th-data-compat-0.0.2.2
+- th-reify-compat-0.0.1.1
 flags: {}
 extra-package-dbs: []
