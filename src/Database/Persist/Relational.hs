@@ -37,7 +37,8 @@ import Database.Persist.Relational.TH
 import Database.Persist.Relational.ToPersistEntity
 import Database.Persist.Sql (SqlBackend)
 import qualified Database.Persist.Sql as PersistSql
-import Database.Record (ToSql, recordToSql, runFromRecord, runToRecord)
+import Database.Record.ToSql (ToSql, recordToSql, runFromRecord)
+import Database.Record.FromSql (runToRecord)
 import Database.Relational.Query
 
 -- | Execute a HRR 'Query' and return the stream of its results.
