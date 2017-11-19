@@ -32,6 +32,7 @@ import Database.Record.TH ( deriveNotNullType
 import Database.Record.ToSql
 import Database.Relational.Query hiding ((!))
 import Database.Relational.Query.TH (defineTable, defineScalarDegree)
+import GHC.Generics
 import Language.Haskell.TH
 
 ftToType :: FieldType -> TypeQ
@@ -63,12 +64,15 @@ defineTableFromPersistentWithConfig config schema persistentRecordName entities 
         (t:_) -> do
             let columns = makeColumns t
                 tableName = T.unpack . unDBName . entityDB $ t
+                -- (mkName Generic) != ''Generic == GHC.Generics.Generic
+                deriveNames = filter (/= "Generic") . entityDerives $ t
+                derives = ''Generic : map (mkName . T.unpack) deriveNames
             tblD <- defineTable
                         config
                         schema
                         tableName
                         columns
-                        (map (mkName . T.unpack) . entityDerives $ t)
+                        derives
                         [0]
                         (Just 0)
             entI <- makeToPersistEntityInstance config schema tableName persistentRecordName columns
