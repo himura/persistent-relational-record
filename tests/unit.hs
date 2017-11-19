@@ -4,7 +4,7 @@
 
 module Main where
 
-import Database.Relational.Query as HRR
+import Database.Relational as HRR
 import Fixtures.BlogSample.Model
 import qualified Fixtures.BlogSample.Post as Post
 import qualified Fixtures.BlogSample.PostTag as PostTag

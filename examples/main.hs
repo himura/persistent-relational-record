@@ -13,7 +13,7 @@ import Data.Time
 import Database.Persist
 import Database.Persist.MySQL
 import Database.Persist.Relational
-import Database.Relational.Query as HRR hiding (fromMaybe)
+import Database.Relational as HRR hiding (fromMaybe, ($$))
 import System.Environment
 
 import qualified Image

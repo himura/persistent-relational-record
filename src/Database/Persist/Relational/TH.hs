@@ -30,8 +30,13 @@ import Database.Record.TH ( deriveNotNullType
 #endif
                           )
 import Database.Record.ToSql
-import Database.Relational.Query hiding ((!))
+#if MIN_VERSION_relational_query(0, 10, 0)
+import Database.Relational
+import Database.Relational.TH (defineTable, defineScalarDegree)
+#else
+import Database.Relational.Query
 import Database.Relational.Query.TH (defineTable, defineScalarDegree)
+#endif
 import GHC.Generics
 import Language.Haskell.TH
 

@@ -8,8 +8,8 @@ import Database.Persist
 import Database.Persist.Relational
 import Database.Persist.Sql
 import Database.Record.TH (deriveNotNullType, deriveNotNullType)
-import Database.Relational.Query
-import Database.Relational.Query.TH (defineScalarDegree, defineScalarDegree)
+import Database.Relational
+import Database.Relational.TH (defineScalarDegree, defineScalarDegree)
 
 data ImageType = JPEG | PNG | BMP | GIF
                deriving (Show, Eq, Enum)
