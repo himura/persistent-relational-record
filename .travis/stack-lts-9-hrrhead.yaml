@@ -9,6 +9,11 @@ packages:
     - persistable-record
     - relational-query
     - sql-words
+  extra-dep: true
+- location:
+    git: https://github.com/khibino/haskell-product-isomorphic.git
+    commit: master
+  extra-dep: true
 extra-deps: []
 flags:
   persistent-relational-record:

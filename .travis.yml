@@ -8,33 +8,23 @@ matrix:
         apt:
           sources: [ hvr-ghc ]
           packages: [ ghc-7.8.4 ]
-    - env: GHCVER=7.10.3 STACK_LTS=lts-5 STACK_TEMPLATE=stack-lts-5.yaml
-      addons:
-        apt:
-          sources: [ hvr-ghc ]
-          packages: [ ghc-7.10.3 ]
     - env: GHCVER=7.10.3 STACK_LTS=lts-6 STACK_TEMPLATE=stack-lts-6.yaml
       addons:
         apt:
           sources: [ hvr-ghc ]
           packages: [ ghc-7.10.3 ]
-    - env: GHCVER=8.0.1 STACK_LTS=lts-7 STACK_TEMPLATE=stack-lts-7.yaml
-      addons:
-        apt:
-          sources: [ hvr-ghc ]
-          packages: [ ghc-8.0.1 ]
-    - env: GHCVER=8.0.2 STACK_LTS=lts-8 STACK_TEMPLATE=stack-lts-8.yaml
+    - env: GHCVER=8.0.2 STACK_LTS=lts-9 STACK_TEMPLATE=stack-lts-9.yaml
       addons:
         apt:
           sources: [ hvr-ghc ]
           packages: [ ghc-8.0.2 ]
-    - env: GHCVER=8.0.2 STACK_LTS=lts-8 STACK_TEMPLATE=stack-lts-8-hrrhead.yaml
+    - env: GHCVER=8.0.2 STACK_LTS=lts-9 STACK_TEMPLATE=stack-lts-9-hrrhead.yaml
       addons:
         apt:
           sources: [ hvr-ghc ]
           packages: [ ghc-8.0.2 ]
   allow_failures:
-    - env: GHCVER=8.0.2 STACK_LTS=lts-8 STACK_TEMPLATE=stack-lts-8-hrrhead.yaml
+    - env: GHCVER=8.0.2 STACK_LTS=lts-9 STACK_TEMPLATE=stack-lts-9-hrrhead.yaml
 
 before_install:
   # Download and unpack the stack executable
