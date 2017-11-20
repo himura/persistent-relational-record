@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -13,7 +14,11 @@ import Data.Time
 import Database.Persist
 import Database.Persist.MySQL
 import Database.Persist.Relational
+#if MIN_VERSION_relational_query(0, 10, 0)
 import Database.Relational as HRR hiding (fromMaybe, ($$))
+#else
+import Database.Relational.Query as HRR hiding (fromMaybe)
+#endif
 import System.Environment
 
 import qualified Image

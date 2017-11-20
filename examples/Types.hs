@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -8,8 +9,13 @@ import Database.Persist
 import Database.Persist.Relational
 import Database.Persist.Sql
 import Database.Record.TH (deriveNotNullType, deriveNotNullType)
+#if MIN_VERSION_relational_query(0, 10, 0)
 import Database.Relational
 import Database.Relational.TH (defineScalarDegree, defineScalarDegree)
+#else
+import Database.Relational.Query
+import Database.Relational.Query.TH (defineScalarDegree, defineScalarDegree)
+#endif
 
 data ImageType = JPEG | PNG | BMP | GIF
                deriving (Show, Eq, Enum)
