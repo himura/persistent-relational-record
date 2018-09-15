@@ -28,7 +28,7 @@ module Database.Persist.Relational
 
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.Trans.Resource (MonadResource)
-import Data.Conduit (Source, ($=))
+import Data.Conduit (ConduitT, (.|))
 import qualified Data.Conduit.List as CL
 import qualified Data.Text as T
 import Database.Persist
@@ -39,7 +39,7 @@ import Database.Persist.Sql (SqlBackend)
 import qualified Database.Persist.Sql as PersistSql
 import Database.Record.ToSql (ToSql, recordToSql, runFromRecord)
 import Database.Record.FromSql (runToRecord)
-import Database.Relational.Query
+import Database.Relational
 
 -- | Execute a HRR 'Query' and return the stream of its results.
 runQuery :: ( MonadResource m
@@ -55,8 +55,8 @@ runQuery :: ( MonadResource m
             )
          => Query p a -- ^ Query to get record type a requires parameter p
          -> p         -- ^ Parameter type
-         -> Source m b
-runQuery q vals = rawQuery q vals $= CL.map (runToRecord recordFromSql')
+         -> ConduitT () b m ()
+runQuery q vals = rawQuery q vals .| CL.map (runToRecord recordFromSql')
 
 rawQuery :: ( MonadResource m
             , MonadReader env m
@@ -70,7 +70,7 @@ rawQuery :: ( MonadResource m
             )
          => Query p a
          -> p
-         -> Source m [PersistValue]
+         -> ConduitT () [PersistValue] m ()
 rawQuery q vals = PersistSql.rawQuery queryTxt params
   where
     queryTxt = T.pack . untypeQuery $ q

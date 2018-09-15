@@ -1,3 +1,7 @@
+## 0.2.0
+
+- Support relational-query >= 0.12.0.0 and conduit-1.3.0
+
 ## 0.1.2.0
 
 - Support relational-query >= 0.10.0

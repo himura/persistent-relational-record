@@ -133,8 +133,8 @@ mkPersistablePrimaryKey fd = do
 
 mkShowConstantTermsSQL :: TypeQ -> Q [Dec]
 mkShowConstantTermsSQL typ =
-    [d|instance ShowConstantTermsSQL $typ where
-           showConstantTermsSQL' = showConstantTermsSQL' . PersistSql.fromSqlKey|]
+    [d|instance LiteralSQL $typ where
+           showLiteral' = showLiteral' . PersistSql.fromSqlKey|]
 
 mkFieldType :: FieldDef -> TypeQ
 mkFieldType fd =
