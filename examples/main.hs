@@ -2,7 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-import Control.Monad.Base
+import Control.Monad.IO.Class
 import Control.Monad.Logger
 import Control.Monad.Trans.Resource
 import Data.ByteString (ByteString)
@@ -12,7 +12,7 @@ import Data.Maybe
 import Data.Text (Text)
 import Data.Time
 import Database.Persist
-import Database.Persist.MySQL
+import Database.Persist.MySQL as Persist
 import Database.Persist.Relational
 #if MIN_VERSION_relational_query(0, 10, 0)
 import Database.Relational as HRR hiding (fromMaybe, ($$))
@@ -75,25 +75,25 @@ addImages :: TagId
           -> [Image]
           -> SqlPersistT (LoggingT IO) ()
 addImages tagId images = do
-    imgIds <- mapM insert images
-    mapM_ (\imgId -> insert $ ImageTag imgId tagId) imgIds
+    imgIds <- mapM Persist.insert images
+    mapM_ (\imgId -> Persist.insert $ ImageTag imgId tagId) imgIds
 
 printImage :: ByteString -> SqlPersistT (LoggingT IO) ()
 printImage hkey =
     getBy (UniqueImageHash hkey) >>= \case
         Just (Entity k val) -> do
-            liftBase $ print val
+            liftIO $ print val
             runResourceT $
                 runQuery (relationalQuery tagListOfImage) k
-                $$ CL.mapM_ (liftBase . print)
-        Nothing -> liftBase $ putStrLn "Image not found"
+                $$ CL.mapM_ (liftIO . print)
+        Nothing -> liftIO $ putStrLn "Image not found"
 
 sample :: SqlPersistT (LoggingT IO) ()
 sample = do
     runMigration migrateAll
-    now <- liftBase getCurrentTime
+    now <- liftIO getCurrentTime
 
-    tagShinkuId <- insert $ Tag "shinku" (Just "二階堂真紅")
+    tagShinkuId <- Persist.insert $ Tag "shinku" (Just "二階堂真紅")
     addImages tagShinkuId
         [ Image "4f4221435f9c5c430db2b093c91b8f1f" PNG now now
         , Image "11eb1ee2b8f9b471f15d85fb784a8fd6" PNG now now
@@ -101,7 +101,7 @@ sample = do
         , Image "e10f6af40a80a7f5794ea0bdc66d4ae3" PNG now now
         ]
 
-    tagMareId <- insert $ Tag "mare" Nothing
+    tagMareId <- Persist.insert $ Tag "mare" Nothing
     addImages tagMareId
         [ Image "fbc717314b90afe6819d4593c583109a" PNG now now
         , Image "dc593d1c551f2a1ea85c2dc5521c7fdf" PNG now now
@@ -109,16 +109,16 @@ sample = do
 
     runResourceT $
         runQuery (relationalQuery $ selectImageByTagNameList False ["shinku"]) ()
-        $$ CL.mapM_ (liftBase . print)
+        $$ CL.mapM_ (liftIO . print)
 
     runResourceT $
         runQuery (relationalQuery $ imageIdFromTagNameList True ["shinku", "mare"]) ()
-        $$ CL.mapM_ (liftBase . print)
+        $$ CL.mapM_ (liftIO . print)
 
     printImage "11eb1ee2b8f9b471f15d85fb784a8fd6"
     printImage "fbc717314b90afe6819d4593c583109a"
 
-    mapM_ (liftBase . print) =<< run
+    mapM_ (liftIO . print) =<< run
 
 run :: SqlPersistT (LoggingT IO) [Entity Image]
 run = runResourceT $
