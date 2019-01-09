@@ -25,8 +25,8 @@ data ImageType = JPEG | PNG | BMP | GIF
 deriveNotNullType [t|ImageType|]
 defineFromToSqlPersistValue [t|ImageType|]
 defineScalarDegree [t|ImageType|]
-instance ShowConstantTermsSQL ImageType where
-    showConstantTermsSQL' = showConstantTermsSQL' . fromEnum
+instance LiteralSQL ImageType where
+    showLiteral' = showLiteral' . fromEnum
 
 -- * instances for persistent
 
