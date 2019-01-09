@@ -1,6 +1,7 @@
 name:                persistent-relational-record
 version:             0.2.0
 synopsis:            relational-record on persisten backends.
+description:         Please see the README on Github at <https://github.com/himura/persistent-relational-record#readme>
 homepage:            http://github.com/himura/persistent-relational-record
 license:             BSD3
 license-file:        LICENSE
