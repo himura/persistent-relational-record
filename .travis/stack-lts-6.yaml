@@ -1,6 +1,0 @@
-resolver: __RESOLVER__
-packages:
-- '.'
-extra-deps: []
-flags: {}
-extra-package-dbs: []
