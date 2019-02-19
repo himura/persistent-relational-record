@@ -17,8 +17,6 @@ tested-with:         GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.3
 extra-source-files:
   .gitignore
   .travis.yml
-  .travis/*.sh
-  .travis/*.yaml
   ChangeLog.md
   README.md
   stack.yaml
