@@ -18,12 +18,10 @@
 module Database.Persist.Relational
        ( runQuery
        , rawQuery
-       , mkHrrInstances
-       , defineTableFromPersistent
-       , defineTableFromPersistentWithConfig
+       , mkHrr
        , defineFromToSqlPersistValue
        , defaultConfig
-       , ToPersistEntity (..)
+       , module Database.Persist.Relational.Config
        ) where
 
 import Control.Monad.Reader (MonadReader)
@@ -32,31 +30,27 @@ import Data.Conduit (ConduitT, (.|))
 import qualified Data.Conduit.List as CL
 import qualified Data.Text as T
 import Database.Persist
+import Database.Persist.Relational.Config
 import Database.Persist.Relational.Instances ()
 import Database.Persist.Relational.TH
-import Database.Persist.Relational.ToPersistEntity
 import Database.Persist.Sql (SqlBackend)
 import qualified Database.Persist.Sql as PersistSql
+import Database.Record.FromSql (FromSql (..), runToRecord)
 import Database.Record.ToSql (ToSql, recordToSql, runFromRecord)
-import Database.Record.FromSql (runToRecord)
 import Database.Relational
 
 -- | Execute a HRR 'Query' and return the stream of its results.
 runQuery :: ( MonadResource m
             , MonadReader env m
-#if MIN_VERSION_persistent(2, 5, 0)
             , HasPersistBackend env
             , BaseBackend env ~ SqlBackend
-#else
-            , HasPersistBackend env SqlBackend
-#endif
+            , FromSql PersistValue a
             , ToSql PersistValue p
-            , ToPersistEntity a b
             )
          => Query p a -- ^ Query to get record type a requires parameter p
          -> p         -- ^ Parameter type
-         -> ConduitT () b m ()
-runQuery q vals = rawQuery q vals .| CL.map (runToRecord recordFromSql')
+         -> ConduitT () a m ()
+runQuery q vals = rawQuery q vals .| CL.map (runToRecord recordFromSql)
 
 rawQuery :: ( MonadResource m
             , MonadReader env m

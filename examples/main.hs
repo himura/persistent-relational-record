@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -21,20 +22,17 @@ import Database.Relational.Query as HRR hiding (fromMaybe)
 #endif
 import System.Environment
 
-import qualified Image
-import qualified ImageTag
 import Model
-import qualified Tag
 import Types
 
 selectImageByTagNameList
     :: Bool -- ^ match any
     -> [Text] -- ^ list of tag name
-    -> Relation () Image.Image
+    -> Relation () (Entity Image)
 selectImageByTagNameList matchAny tagNames = relation $ do
-    img <- query Image.image
+    img <- query imageTable
     imgids <- query $ imageIdFromTagNameList matchAny tagNames
-    on $ img ! Image.id' .=. imgids
+    on $ #id img .=. imgids
     return img
 
 -- ^ query ImageId by tag name list
@@ -51,24 +49,24 @@ imageIdFromTagNameList
     -> [Text] -- ^ list of tag name
     -> Relation () ImageId
 imageIdFromTagNameList matchAny tagNames = aggregateRelation $ do
-    imgtag <- query $ ImageTag.imageTag
-    tag <- query $ Tag.tag
-    on $ tag ! Tag.id' .=. imgtag ! ImageTag.tagId'
-    wheres $ tag ! Tag.name' `in'` values tagNames
-    g <- groupBy $ imgtag ! ImageTag.imageId'
-    let c = HRR.count $ imgtag ! ImageTag.imageId'
+    imgtag <- query imageTagTable
+    tag <- query tagTable
+    on $ #id tag .=. #tagId imgtag
+    wheres $ #name tag `in'` values tagNames
+    g <- groupBy $ #imageId imgtag
+    let c = HRR.count $ (#imageId imgtag :: Record Flat ImageId)
     having $
         if matchAny
             then c .>. value (0 :: Int)
             else c .=. value (fromIntegral . length $ tagNames)
     return g
 
-tagListOfImage :: Relation ImageId Tag.Tag
+tagListOfImage :: Relation ImageId (Entity Tag)
 tagListOfImage = relation' $ placeholder $ \ph -> do
-    tag <- query Tag.tag
-    imgtag <- query ImageTag.imageTag
-    on $ tag ! Tag.id' .=. imgtag ! ImageTag.tagId'
-    wheres $ imgtag ! ImageTag.imageId' .=. ph
+    tag <- query tagTable
+    imgtag <- query imageTagTable
+    on $ #id tag .=. #tagId imgtag
+    wheres $ #imageId imgtag .=. ph
     return tag
 
 addImages :: TagId
