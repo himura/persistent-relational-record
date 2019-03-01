@@ -15,12 +15,12 @@ module Model where
 import Data.ByteString (ByteString)
 import Data.Text (Text)
 import Data.Time (UTCTime)
-import Database.Persist.Relational (mkHrr, defaultTableVarNameConfig)
+import Database.Persist.Relational (mkHrr)
 import Database.Persist.TH
 import Types
 import GHC.Generics
 
-share [mkPersist sqlSettings, mkMigrate "migrateAll", mkHrr defaultTableVarNameConfig] [persistLowerCase|
+share [mkPersist sqlSettings, mkMigrate "migrateAll", mkHrr] [persistLowerCase|
 Image
     hash       ByteString
     type       ImageType

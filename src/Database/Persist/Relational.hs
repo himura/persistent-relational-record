@@ -19,6 +19,7 @@ module Database.Persist.Relational
        ( runQuery
        , rawQuery
        , mkHrr
+       , mkHrrWithConfig
        , defineFromToSqlPersistValue
        , defaultConfig
        , module Database.Persist.Relational.Config

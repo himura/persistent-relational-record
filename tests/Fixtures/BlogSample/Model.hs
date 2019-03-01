@@ -18,7 +18,7 @@ import Database.Persist.TH
 import Database.Persist.Relational
 import GHC.Generics
 
-share [mkPersist sqlSettings, mkMigrate "migrateAll", mkHrr defaultTableVarNameConfig] [persistLowerCase|
+share [mkPersist sqlSettings, mkMigrate "migrateAll", mkHrr] [persistLowerCase|
 User
     name    Text
     age     Int

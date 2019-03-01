@@ -1,11 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Database.Persist.Relational.TH
-       where
+module Database.Persist.Relational.TH where
 
 import qualified Data.Array as Arr
 import Data.Int
@@ -17,7 +15,7 @@ import Database.Persist.Quasi
 import Database.Persist.Relational.Config
 import qualified Database.Persist.Sql as PersistSql
 import Database.Record (PersistableWidth (..))
-import Database.Record.FromSql
+import Database.Record.FromSql (FromSql(..), valueRecordFromSql)
 import Database.Record.Persistable
     ( PersistableRecordWidth
     , ProductConst
@@ -26,40 +24,38 @@ import Database.Record.Persistable
     , runPersistableRecordWidth
     )
 import Database.Record.TH (deriveNotNullType)
-import Database.Record.ToSql
-import Database.Relational
+import Database.Record.ToSql (ToSql (..), valueRecordToSql)
+import Database.Relational (LiteralSQL(..))
 import Database.Relational.OverloadedProjection (HasProjection(..))
 import Database.Relational.Pi.Unsafe (definePi)
 import Database.Relational.TH (defineTableTypes, defineScalarDegree)
 import Language.Haskell.TH
-import Language.Haskell.TH.Name.CamelCase
+import Language.Haskell.TH.Name.CamelCase (VarName (..), varCamelcaseName)
 
-mkHrr :: TableVarNameConfig -> [EntityDef] -> Q [Dec]
-mkHrr conf = concatMapM (mkHrrForEntityDef conf)
+mkHrr :: [EntityDef] -> Q [Dec]
+mkHrr = mkHrrWithConfig defaultNameConfig
 
-mkHrrForEntityDef :: TableVarNameConfig -> EntityDef -> Q [Dec]
+mkHrrWithConfig :: NameConfig -> [EntityDef] -> Q [Dec]
+mkHrrWithConfig conf = concatMapM (mkHrrForEntityDef conf)
+
+mkHrrForEntityDef :: NameConfig -> EntityDef -> Q [Dec]
 mkHrrForEntityDef conf ent = do
-    tableConfig <- entityDefToTableConfig conf ent
-    pkeyInstances <- mkPersistablePrimaryKey $ entityId ent
-    tableTypes <- defineTableTypesFromTableConfig tableConfig
-    columnOffsets <- defineColumnOffsetsVar tableConfig
-    piProjections <- defineMonomorphicProjections tableConfig
-    pwidthInstances <- definePersistableWidthInstances tableConfig
-    fromSqlInstances <- defineFromSqlPersistValueInstances tableConfig
+    pkeyInstances <- mkPersistablePrimaryKey idType
+    tableTypes <- defineTableTypesForTableDef conf tableDef
+    piProjections <- defineMonomorphicProjections tableDef
+    pwidthInstances <- definePersistableWidthInstances tableType
+    fromSqlInstances <- defineFromSqlPersistValueInstances tableType
 
-    return $ pkeyInstances ++ tableTypes ++ columnOffsets ++ piProjections ++ pwidthInstances ++ fromSqlInstances
+    return $ pkeyInstances ++ tableTypes ++ piProjections ++ pwidthInstances ++ fromSqlInstances
+  where
+    tableDef@TableDef { tableType, tableIdColumn = Column {columnType = idType} } = entityDefToTableDef conf ent
 
-data TableConfig = TableConfig
-    { tableTypeName :: Name
-    , tableDatabaseNameStr :: String
-    , tableVarName :: Name
-    , tableOfVarName :: Name
-    , relationVarName :: Name
-    , insertVarName :: Name
-    , insertQueryVarName :: Name
-    , columnOffsetsVarName :: Name
-    , columnOffsetsEntityVarName :: Name
-    , columns :: [Column]
+data TableDef = TableDef
+    { tableType :: TypeQ
+    , tableTypeName :: String
+    , tableDatabaseName :: String
+    , tableIdColumn :: Column
+    , tableColumns :: [Column]
     }
 
 data Column = Column
@@ -68,27 +64,17 @@ data Column = Column
     , columnType :: TypeQ
     }
 
-entityDefToTableConfig :: TableVarNameConfig -> EntityDef -> Q TableConfig
-entityDefToTableConfig TableVarNameConfig {..} ent = do
-    columnOffsetsVarName <-
-        if columnOffsetsVarUseNewName
-            then newName $ columnOffsetsVarNameFromTableTypeName tableTypeNameStr
-            else return . mkName $ columnOffsetsVarNameFromTableTypeName tableTypeNameStr
-    columnOffsetsEntityVarName <-
-        if columnOffsetsVarUseNewName
-            then newName $ columnOffsetsEntityVarNameFromTableTypeName tableTypeNameStr
-            else return . mkName $ columnOffsetsEntityVarNameFromTableTypeName tableTypeNameStr
-    return $ TableConfig {..}
+entityDefToTableDef :: NameConfig -> EntityDef -> TableDef
+entityDefToTableDef conf@NameConfig {..} ent =
+    TableDef
+    { tableType = conT $ mkName typeName
+    , tableTypeName = typeName
+    , tableDatabaseName = T.unpack . unDBName . entityDB $ ent
+    , tableIdColumn = makeColumn conf $ entityId ent
+    , tableColumns = map (makeColumn conf) $ entityFields ent
+    }
   where
-    tableTypeNameStr = T.unpack . unHaskellName . entityHaskell $ ent
-    tableDatabaseNameStr = T.unpack . unDBName . entityDB $ ent
-    tableTypeName = mkName tableTypeNameStr
-    tableVarName = mkName $ tableVarNameFromTableTypeName tableTypeNameStr
-    tableOfVarName = mkName $ tableOfVarNameFromTableTypeName tableTypeNameStr
-    relationVarName = mkName $ relationVarNameFromTableTypeName tableTypeNameStr
-    insertVarName = mkName $ insertVarNameFromTableTypeName tableTypeNameStr
-    insertQueryVarName = mkName $ insertQueryVarNameFromTableTypeName tableTypeNameStr
-    columns = map (\(name, typ) -> Column name (columnNameToLabelName name) typ) $ makeColumns ent
+    typeName = T.unpack . unHaskellName . entityHaskell $ ent
 
 ftToType :: FieldType -> TypeQ
 ftToType (FTTypeCon Nothing t) = conT $ mkName $ T.unpack t
@@ -99,34 +85,48 @@ ftToType (FTTypeCon (Just m) t) = conT $ mkName $ T.unpack $ T.concat [m, ".", t
 ftToType (FTApp x y) = ftToType x `appT` ftToType y
 ftToType (FTList x) = listT `appT` ftToType x
 
-makeColumns :: EntityDef
-            -> [(String, TypeQ)]
-makeColumns t =
-    mkCol (entityId t) : map mkCol (entityFields t)
+makeColumn :: NameConfig -> FieldDef -> Column
+makeColumn NameConfig{columnNameToLabelName} fd@FieldDef { fieldDB = DBName dbName } =
+    Column
+    { columnDBName = columnName
+    , columnLabelName = columnNameToLabelName columnName
+    , columnType = mkFieldType fd
+    }
   where
-    mkCol fd = (toS $ fieldDB fd, mkFieldType fd)
-    toS = T.unpack . unDBName
+    columnName = T.unpack dbName
 
 concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
 concatMapM = (fmap concat .) . mapM
 
 -- | Generate `HasProjection "columnName" (Entity table) columnType` instances
-defineMonomorphicProjections :: TableConfig -> Q [Dec]
-defineMonomorphicProjections tableConfig@TableConfig {columns} =
-    concatMapM (definePiProjection tableConfig) $ zip [0..] columns
+defineMonomorphicProjections :: TableDef -> Q [Dec]
+defineMonomorphicProjections TableDef{tableTypeName = tableTypeNameStr, tableIdColumn, tableColumns} = do
+    columnOffsetsVarName <- newName $ "columnOffsets" ++ tableTypeNameStr
+    columnOffsetsEntityVarName <- newName $ "columnOffsetsEntity" ++ tableTypeNameStr
+    coVar <- defineColumnOffsetsVar tableTypeName columnOffsetsVarName columnOffsetsEntityVarName
+    piPrjs <- concatMapM (definePiProjection tableTypeName columnOffsetsEntityVarName) $ zip [0..] columns
+    return $ coVar ++ piPrjs
+  where
+    tableTypeName = mkName tableTypeNameStr
+    columns = tableIdColumn : tableColumns
 
 -- | Generate a `HasProjection "columnName" (Entity table) columnType` instance
 definePiProjection ::
-       TableConfig
+       Name -- ^ table type name
+    -> Name -- ^ columnOffsetsVarName
     -> (Integer, Column) -- ^ (column idx, (column name, column type))
     -> Q [Dec]
-definePiProjection TableConfig {tableTypeName, columnOffsetsEntityVarName} (colIdx, Column {..}) =
+definePiProjection tableTypeName columnOffsetsEntityVarName (colIdx, Column {..}) =
     [d| instance HasProjection $(litT . strTyLit $ columnLabelName) (Entity $(conT tableTypeName)) $(columnType) where
             projection _ = definePi $ $(varE columnOffsetsEntityVarName) Arr.! $(litE . integerL $ colIdx)
     |]
 
-defineColumnOffsetsVar :: TableConfig -> Q [Dec]
-defineColumnOffsetsVar TableConfig {tableTypeName, columnOffsetsVarName, columnOffsetsEntityVarName} = do
+defineColumnOffsetsVar ::
+       Name -- ^ table type name
+    -> Name -- ^ columnOffsetsVarName
+    -> Name -- ^ columnOffsetsEntityVarName
+    -> Q [Dec]
+defineColumnOffsetsVar tableTypeName columnOffsetsVarName columnOffsetsEntityVarName = do
     sig <- sigD columnOffsetsVarName [t| Arr.Array Int Int |]
     val <- valD (varP columnOffsetsVarName) (normalB [| getProductConst (genericFieldOffsets :: ProductConst (Arr.Array Int Int) $(conT tableTypeName)) |]) []
 
@@ -142,41 +142,42 @@ defineColumnOffsetsVar TableConfig {tableTypeName, columnOffsetsVarName, columnO
             []
     return [sig, val, sigEnt, valEnt]
 
-defineTableTypesFromTableConfig :: TableConfig -> Q [Dec]
-defineTableTypesFromTableConfig TableConfig {..} =
+defineTableTypesForTableDef :: NameConfig -> TableDef -> Q [Dec]
+defineTableTypesForTableDef conf TableDef {..} =
     defineTableTypes
-        (VarName tableOfVarName)
-        (VarName tableVarName)
-        (VarName insertVarName)
-        (VarName insertQueryVarName)
-        [t|Entity $(conT tableTypeName)|]
-        tableDatabaseNameStr
+        tableOfVarName
+        tableVarName
+        insertVarName
+        insertQueryVarName
+        [t|Entity $tableType|]
+        tableDatabaseName
         colNames
   where
-    colNames = map columnDBName columns
+    tableOfVarName = varCamelcaseName $ "tableOf_" ++ tableTypeName
+    mkVarName f = VarName $ mkName $ f conf tableTypeName
+    tableVarName = mkVarName tableVarNameFromTableTypeName
+    insertVarName = mkVarName insertVarNameFromTableTypeName
+    insertQueryVarName = mkVarName insertQueryVarNameFromTableTypeName
+    colNames = map columnDBName $ tableIdColumn : tableColumns
 
-definePersistableWidthInstances :: TableConfig -> Q [Dec]
-definePersistableWidthInstances TableConfig{tableTypeName} =
-    [d| instance PersistableWidth $(conT tableTypeName)
-        instance PersistableWidth (Entity $(conT tableTypeName)) |]
 
-defineFromSqlPersistValueInstances :: TableConfig -> Q [Dec]
-defineFromSqlPersistValueInstances TableConfig{tableTypeName} =
-    [d| instance FromSql PersistValue $(conT tableTypeName)
-        instance FromSql PersistValue (Entity $(conT tableTypeName)) |]
+definePersistableWidthInstances :: TypeQ -> Q [Dec]
+definePersistableWidthInstances tableType =
+    [d| instance PersistableWidth $tableType
+        instance PersistableWidth (Entity $tableType) |]
 
-mkHrrInstancesEachEntityDef :: EntityDef -> Q [Dec]
-mkHrrInstancesEachEntityDef = mkPersistablePrimaryKey . entityId
+defineFromSqlPersistValueInstances :: TypeQ -> Q [Dec]
+defineFromSqlPersistValueInstances tableType =
+    [d| instance FromSql PersistValue $tableType
+        instance FromSql PersistValue (Entity $tableType) |]
 
-mkPersistablePrimaryKey :: FieldDef -> Q [Dec]
-mkPersistablePrimaryKey fd = do
+mkPersistablePrimaryKey :: TypeQ -> Q [Dec]
+mkPersistablePrimaryKey typ = do
     notNullD <- deriveNotNullType typ
     persistableD <- defineFromToSqlPersistValue typ
     scalarDegD <- defineScalarDegree typ
     showCTermSQLD <- mkShowConstantTermsSQL typ
     return $ notNullD ++ persistableD ++ scalarDegD ++ showCTermSQLD
-  where
-    typ = mkFieldType fd
 
 mkShowConstantTermsSQL :: TypeQ -> Q [Dec]
 mkShowConstantTermsSQL typ =
