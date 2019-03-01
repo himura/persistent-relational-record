@@ -54,8 +54,9 @@ mkHrrForEntityDef conf ent = do
 
 -- | standalone deriving Generic instance for entity IDs.
 --
--- Persistent does not generate Generic instances for `Key a`.
+-- Persistent does not derive Generic instances for `Key a`.
 -- see https://github.com/yesodweb/persistent/pull/734#issuecomment-346696921
+--     https://github.com/yesodweb/persistent/issues/578
 deriveGenericForEntityId :: [EntityDef] -> Q [Dec]
 deriveGenericForEntityId entityDefs =
     concatMapM mkDerivingGeneric $ map (mkFieldType . entityId) entityDefs

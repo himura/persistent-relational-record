@@ -18,7 +18,7 @@ import Database.Persist.TH
 import Database.Persist.Relational
 import GHC.Generics
 
-share [mkPersist sqlSettings, mkMigrate "migrateAll", mkHrr] [persistLowerCase|
+share [mkPersist sqlSettings, mkMigrate "migrateAll", mkHrr, deriveGenericForEntityId] [persistLowerCase|
 User
     name    Text
     age     Int
@@ -40,8 +40,3 @@ PostTag
     UniquePostTag postId tagId
     deriving Show Eq Generic
 |]
-
-deriving instance Generic UserId
-deriving instance Generic PostId
-deriving instance Generic TagId
-deriving instance Generic PostTagId
