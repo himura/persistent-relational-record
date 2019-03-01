@@ -55,12 +55,8 @@ runQuery q vals = rawQuery q vals .| CL.map (runToRecord recordFromSql)
 
 rawQuery :: ( MonadResource m
             , MonadReader env m
-#if MIN_VERSION_persistent(2, 5, 0)
             , HasPersistBackend env
             , BaseBackend env ~ SqlBackend
-#else
-            , HasPersistBackend env SqlBackend
-#endif
             , ToSql PersistValue p
             )
          => Query p a
