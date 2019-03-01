@@ -22,7 +22,6 @@ module Database.Persist.Relational
        , mkHrrWithConfig
        , deriveGenericForEntityId
        , defineFromToSqlPersistValue
-       , defaultConfig
        , module Database.Persist.Relational.Config
        ) where
 
