@@ -120,9 +120,9 @@ definePiProjection ::
        TableConfig
     -> (Integer, Column) -- ^ (column idx, (column name, column type))
     -> Q [Dec]
-definePiProjection TableConfig {tableTypeName, columnOffsetsVarName} (colIdx, Column {..}) =
+definePiProjection TableConfig {tableTypeName, columnOffsetsEntityVarName} (colIdx, Column {..}) =
     [d| instance HasProjection $(litT . strTyLit $ columnLabelName) (Entity $(conT tableTypeName)) $(columnType) where
-            projection _ = definePi $ $(varE columnOffsetsVarName) Arr.! $(litE . integerL $ colIdx)
+            projection _ = definePi $ $(varE columnOffsetsEntityVarName) Arr.! $(litE . integerL $ colIdx)
     |]
 
 defineColumnOffsetsVar :: TableConfig -> Q [Dec]
