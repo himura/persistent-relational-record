@@ -2,6 +2,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Database.Persist.Relational.TH where
 
@@ -29,6 +30,7 @@ import Database.Relational (LiteralSQL(..))
 import Database.Relational.OverloadedProjection (HasProjection(..))
 import Database.Relational.Pi.Unsafe (definePi)
 import Database.Relational.TH (defineTableTypes, defineScalarDegree)
+import GHC.Generics
 import Language.Haskell.TH
 import Language.Haskell.TH.Name.CamelCase (VarName (..), varCamelcaseName)
 
@@ -49,6 +51,16 @@ mkHrrForEntityDef conf ent = do
     return $ pkeyInstances ++ tableTypes ++ piProjections ++ pwidthInstances ++ fromSqlInstances
   where
     tableDef@TableDef { tableType, tableIdColumn = Column {columnType = idType} } = entityDefToTableDef conf ent
+
+-- | standalone deriving Generic instance for entity IDs.
+--
+-- Persistent does not generate Generic instances for `Key a`.
+-- see https://github.com/yesodweb/persistent/pull/734#issuecomment-346696921
+deriveGenericForEntityId :: [EntityDef] -> Q [Dec]
+deriveGenericForEntityId entityDefs =
+    concatMapM mkDerivingGeneric $ map (mkFieldType . entityId) entityDefs
+  where
+    mkDerivingGeneric typ = [d| deriving instance Generic $typ |]
 
 data TableDef = TableDef
     { tableType :: TypeQ

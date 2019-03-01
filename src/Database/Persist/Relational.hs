@@ -20,6 +20,7 @@ module Database.Persist.Relational
        , rawQuery
        , mkHrr
        , mkHrrWithConfig
+       , deriveGenericForEntityId
        , defineFromToSqlPersistValue
        , defaultConfig
        , module Database.Persist.Relational.Config
