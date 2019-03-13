@@ -29,7 +29,7 @@ import Database.Record.ToSql (ToSql (..), valueRecordToSql)
 import Database.Relational (LiteralSQL(..))
 import Database.Relational.OverloadedProjection (HasProjection(..))
 import Database.Relational.Pi.Unsafe (definePi)
-import Database.Relational.TH (defineTableTypes, defineScalarDegree)
+import Database.Relational.TH (defineTableTypes, defineScalarDegree, defineHasNotNullKeyInstance)
 import GHC.Generics
 import Language.Haskell.TH
 import Language.Haskell.TH.Name.CamelCase (VarName (..), varCamelcaseName)
@@ -47,8 +47,9 @@ mkHrrForEntityDef conf ent = do
     piProjections <- defineMonomorphicProjections tableDef
     pwidthInstances <- definePersistableWidthInstances tableType
     fromSqlInstances <- defineFromSqlPersistValueInstances tableType
+    notNullD <- defineHasNotNullKeyInstance [t|Entity $tableType|] 0 -- Entity key is always not null and pos=0
 
-    return $ pkeyInstances ++ tableTypes ++ piProjections ++ pwidthInstances ++ fromSqlInstances
+    return $ pkeyInstances ++ tableTypes ++ piProjections ++ pwidthInstances ++ fromSqlInstances ++ notNullD
   where
     tableDef@TableDef { tableType, tableIdColumn = Column {columnType = idType} } = entityDefToTableDef conf ent
 
