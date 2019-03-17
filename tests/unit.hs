@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -6,11 +5,7 @@
 
 module Main where
 
-#if MIN_VERSION_relational_query(0, 10, 0)
 import Database.Relational as HRR
-#else
-import Database.Relational.Query as HRR
-#endif
 import Fixtures.BlogSample.Model
 import Test.Framework
 import Test.Framework.Providers.HUnit
