@@ -63,6 +63,10 @@ Membership
 The main difference from the persistent version is that `mkHrr` are added to the 1st argument of the `share` function.
 `mkHrr` generates various instances and helper functions from the entities definition to cooperate with HRR.
 
+NOTE: `deriveGenericForEntityId` is also appended to the list in above example.
+Currently, persistent does not generate `Generic` instances for EntityID types (`UserId`, `UserGroupId`, and `MembershipId` in above example).
+Haskell Relational Record rely on the Generic instance of record types, so persistent-relational-record provides `deriveGenericForEntityId` for convenience to derive `Generic` instance via `StandaloneDeriving`
+
 Now, you can build queries in manner of HRR:
 
 ```Haskell
