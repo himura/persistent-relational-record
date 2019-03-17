@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -12,30 +11,35 @@
 
 module Model where
 
-import Data.ByteString (ByteString)
 import Data.Text (Text)
 import Data.Time (UTCTime)
 import Database.Persist.Relational
 import Database.Persist.TH
-import Types
 import GHC.Generics
+import Types
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll", mkHrr, deriveGenericForEntityId] [persistLowerCase|
-Image
-    hash       ByteString
-    type       ImageType
-    created_at UTCTime
-    changed_at UTCTime
-    UniqueImageHash hash
+User
+    email       Text
+    name        Text
+    status      UserStatus
+    created_at  UTCTime
+    updated_at  UTCTime
+
+    UniqueUserEmail email
     deriving Show Eq Generic
-Tag
-    name       Text
-    description Text Maybe
-    UniqueTagName name
+
+UserGroup
+    name        Text
+    pageUrl     Text Maybe
+
+    UniqueUserGroupName  name
     deriving Show Eq Generic
-ImageTag
-    imageId    ImageId
-    tagId      TagId
-    UniqueImageTag imageId tagId
+
+Membership
+    userId      UserId
+    userGroupId UserGroupId
+
+    UniqueImageTag userId userGroupId
     deriving Show Eq Generic
 |]

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -9,30 +8,28 @@ import Database.Persist
 import Database.Persist.Relational
 import Database.Persist.Sql
 import Database.Record.TH (deriveNotNullType, deriveNotNullType)
-#if MIN_VERSION_relational_query(0, 10, 0)
 import Database.Relational
 import Database.Relational.TH (defineScalarDegree, defineScalarDegree)
-#else
-import Database.Relational.Query
-import Database.Relational.Query.TH (defineScalarDegree, defineScalarDegree)
-#endif
 
-data ImageType = JPEG | PNG | BMP | GIF
-               deriving (Show, Eq, Enum)
+data UserStatus
+    = UserActive
+    | UserSuspended
+    | UserWithdrawn
+    deriving (Show, Eq, Enum)
 
 -- * instances for HRR
 
-deriveNotNullType [t|ImageType|]
-defineFromToSqlPersistValue [t|ImageType|]
-defineScalarDegree [t|ImageType|]
-instance LiteralSQL ImageType where
+deriveNotNullType [t|UserStatus|]
+defineFromToSqlPersistValue [t|UserStatus|]
+defineScalarDegree [t|UserStatus|]
+instance LiteralSQL UserStatus where
     showLiteral' = showLiteral' . fromEnum
 
 -- * instances for persistent
 
-instance PersistFieldSql ImageType where
+instance PersistFieldSql UserStatus where
     sqlType _ = SqlInt32
-instance PersistField ImageType where
+instance PersistField UserStatus where
     toPersistValue = PersistInt64 . fromIntegral . fromEnum
     fromPersistValue (PersistInt64 v) = Right . toEnum . fromIntegral $ v
-    fromPersistValue v = Left . T.pack $ "ImageType: Unkown Type, recieved: " ++ show v
+    fromPersistValue v = Left . T.pack $ "UserStatus: Unkown Type, recieved: " ++ show v
