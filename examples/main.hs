@@ -1,128 +1,67 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 import Control.Monad.IO.Class
 import Control.Monad.Logger
 import Control.Monad.Trans.Resource
-import Data.ByteString (ByteString)
 import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Data.Maybe
-import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import Data.Time
-import Database.Persist
-import Database.Persist.MySQL as Persist
+import Database.Persist.MySQL (ConnectInfo (..), defaultConnectInfo, withMySQLPool)
 import Database.Persist.Relational
-#if MIN_VERSION_relational_query(0, 10, 0)
-import Database.Relational as HRR hiding (fromMaybe, ($$))
-#else
-import Database.Relational.Query as HRR hiding (fromMaybe)
-#endif
+import Database.Persist.Sql
+import Database.Relational (relationalQuery)
 import System.Environment
 
-import qualified Image
-import qualified ImageTag
 import Model
-import qualified Tag
+import Query
 import Types
 
-selectImageByTagNameList
-    :: Bool -- ^ match any
-    -> [Text] -- ^ list of tag name
-    -> Relation () Image.Image
-selectImageByTagNameList matchAny tagNames = relation $ do
-    img <- query Image.image
-    imgids <- query $ imageIdFromTagNameList matchAny tagNames
-    on $ img ! Image.id' .=. imgids
-    return img
+addUser :: (MonadUnliftIO m, MonadLogger m) => User -> [UserGroupId] -> SqlPersistT m UserId
+addUser user userGroupIds = do
+    userId <- insert user
+    insertMany_ $ map (Membership userId) userGroupIds
+    return userId
 
--- ^ query ImageId by tag name list
---
--- @
--- SELECT image_id FROM image_tag
--- INNER JOIN tag ON tag.id = image_tag.tag_id
--- WHERE tag.name IN (<<tagNames>>)
--- GROUP BY image_tag.image_id
--- HAVING COUNT(image_tag.image_id) = <<length tagNames>>
--- @
-imageIdFromTagNameList
-    :: Bool -- ^ match any
-    -> [Text] -- ^ list of tag name
-    -> Relation () ImageId
-imageIdFromTagNameList matchAny tagNames = aggregateRelation $ do
-    imgtag <- query $ ImageTag.imageTag
-    tag <- query $ Tag.tag
-    on $ tag ! Tag.id' .=. imgtag ! ImageTag.tagId'
-    wheres $ tag ! Tag.name' `in'` values tagNames
-    g <- groupBy $ imgtag ! ImageTag.imageId'
-    let c = HRR.count $ imgtag ! ImageTag.imageId'
-    having $
-        if matchAny
-            then c .>. value (0 :: Int)
-            else c .=. value (fromIntegral . length $ tagNames)
-    return g
-
-tagListOfImage :: Relation ImageId Tag.Tag
-tagListOfImage = relation' $ placeholder $ \ph -> do
-    tag <- query Tag.tag
-    imgtag <- query ImageTag.imageTag
-    on $ tag ! Tag.id' .=. imgtag ! ImageTag.tagId'
-    wheres $ imgtag ! ImageTag.imageId' .=. ph
-    return tag
-
-addImages :: TagId
-          -> [Image]
-          -> SqlPersistT (LoggingT IO) ()
-addImages tagId images = do
-    imgIds <- mapM Persist.insert images
-    mapM_ (\imgId -> Persist.insert $ ImageTag imgId tagId) imgIds
-
-printImage :: ByteString -> SqlPersistT (LoggingT IO) ()
-printImage hkey =
-    getBy (UniqueImageHash hkey) >>= \case
-        Just (Entity k val) -> do
-            liftIO $ print val
-            runResourceT $
-                runQuery (relationalQuery tagListOfImage) k
-                $$ CL.mapM_ (liftIO . print)
-        Nothing -> liftIO $ putStrLn "Image not found"
-
-sample :: SqlPersistT (LoggingT IO) ()
+sample :: (MonadUnliftIO m, MonadLogger m) => SqlPersistT m ()
 sample = do
     runMigration migrateAll
     now <- liftIO getCurrentTime
 
-    tagShinkuId <- Persist.insert $ Tag "shinku" (Just "二階堂真紅")
-    addImages tagShinkuId
-        [ Image "4f4221435f9c5c430db2b093c91b8f1f" PNG now now
-        , Image "11eb1ee2b8f9b471f15d85fb784a8fd6" PNG now now
-        , Image "7e11b84e04f181179cde72a5d0a5731f" PNG now now
-        , Image "e10f6af40a80a7f5794ea0bdc66d4ae3" PNG now now
-        ]
+    userGroupPersistentId <- insert $ UserGroup "persistent" Nothing
+    userGroupHrrId <- insert $ UserGroup "haskell-relational-record" Nothing
+    userGroupHaskellJpId <- insert $ UserGroup "haskell-jp" (Just "https://haskell.jp/")
 
-    tagMareId <- Persist.insert $ Tag "mare" Nothing
-    addImages tagMareId
-        [ Image "fbc717314b90afe6819d4593c583109a" PNG now now
-        , Image "dc593d1c551f2a1ea85c2dc5521c7fdf" PNG now now
-        ]
+    _ <- addUser (User "michael@example.com" "Michael" UserActive now now) [userGroupPersistentId]
+    _ <- addUser (User "khibino@example.com" "Kei" UserActive now now) [userGroupHrrId, userGroupHaskellJpId]
+    _ <- addUser (User "thimura@example.com" "Takahiro" UserSuspended now now) [userGroupPersistentId, userGroupHrrId, userGroupHaskellJpId]
 
-    runResourceT $
-        runQuery (relationalQuery $ selectImageByTagNameList False ["shinku"]) ()
-        $$ CL.mapM_ (liftIO . print)
+    liftIO $ putStrLn "## haskell-jp users:"
+    runResourceT . runConduit $
+        runQuery (relationalQuery $ selectUserByUserGroupNameList False ["haskell-jp"]) ()
+        .| CL.mapM_ (liftIO . printUser)
 
-    runResourceT $
-        runQuery (relationalQuery $ imageIdFromTagNameList True ["shinku", "mare"]) ()
-        $$ CL.mapM_ (liftIO . print)
+    liftIO $ putStrLn "## persistent users:"
+    runResourceT . runConduit $
+        runQuery (relationalQuery $ selectUserByUserGroupNameList False ["persistent"]) ()
+        .| CL.mapM_ (liftIO . printUser)
 
-    printImage "11eb1ee2b8f9b471f15d85fb784a8fd6"
-    printImage "fbc717314b90afe6819d4593c583109a"
+    liftIO $ putStrLn "## both persistent and haskell-relational-record users:"
 
-    mapM_ (liftIO . print) =<< run
+    runResourceT . runConduit $
+        runQuery (relationalQuery $ selectUserByUserGroupNameList False ["persistent", "haskell-relational-record"]) ()
+        .| CL.mapM_ (liftIO . printUser)
 
-run :: SqlPersistT (LoggingT IO) [Entity Image]
-run = runResourceT $
-    runQuery (relationalQuery $ selectImageByTagNameList False ["shinku", "mare"]) () $$ CL.consume
+printUser :: Entity User -> IO ()
+printUser (Entity k (User {..})) =
+    T.putStrLn $ T.concat [ T.pack (show userId), ": ", userName, " <", userEmail, ">" ]
+  where
+    userId = fromSqlKey k
 
 getConnectInfo :: IO ConnectInfo
 getConnectInfo = do
@@ -139,4 +78,7 @@ getConnectInfo = do
 main :: IO ()
 main = do
     connInfo <- getConnectInfo
-    runStderrLoggingT $ withMySQLPool connInfo 10 $ runSqlPool sample
+    runLoggingT $ withMySQLPool connInfo 10 $ runSqlPool sample
+  where
+    -- runLoggingT = runNoLoggingT
+    runLoggingT = runStderrLoggingT

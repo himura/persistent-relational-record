@@ -1,36 +1,45 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE FlexibleInstances #-}
 
 module Model where
 
-import Data.ByteString (ByteString)
 import Data.Text (Text)
 import Data.Time (UTCTime)
-import Database.Persist.Relational (mkHrrInstances)
+import Database.Persist.Relational
 import Database.Persist.TH
+import GHC.Generics
 import Types
 
-share [mkPersist sqlSettings, mkMigrate "migrateAll", mkSave "db", mkHrrInstances] [persistLowerCase|
-Image
-    hash       ByteString
-    type       ImageType
-    created_at UTCTime
-    changed_at UTCTime
-    UniqueImageHash hash
-    deriving Show Eq
-Tag
-    name       Text
-    description Text Maybe
-    UniqueTagName name
-    deriving Show Eq
-ImageTag
-    imageId    ImageId
-    tagId      TagId
-    UniqueImageTag imageId tagId
-    deriving Show Eq
+share [mkPersist sqlSettings, mkMigrate "migrateAll", mkHrr, deriveGenericForEntityId] [persistLowerCase|
+User
+    email       Text
+    name        Text
+    status      UserStatus
+    created_at  UTCTime
+    updated_at  UTCTime
+
+    UniqueUserEmail email
+    deriving Show Eq Generic
+
+UserGroup
+    name        Text
+    pageUrl     Text Maybe
+
+    UniqueUserGroupName  name
+    deriving Show Eq Generic
+
+Membership
+    userId      UserId
+    userGroupId UserGroupId
+
+    UniqueImageTag userId userGroupId
+    deriving Show Eq Generic
 |]
