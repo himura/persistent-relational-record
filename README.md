@@ -80,8 +80,26 @@ import Database.Relational
 
 import Model
 
+-- ^ query users by UserGroup name list
+--
+-- @
+-- SELECT
+--   user.*
+-- FROM user
+-- INNER JOIN (
+--   -- built by userIdFromUserGroupNameList
+--   SELECT
+--     user_id
+--   FROM membership
+--   INNER JOIN userGroup ON userGroup.id = membership.userGroup_id
+--   WHERE userGroup.name IN (<<userGroupNames>>)
+--   GROUP BY membership.user_id
+--   HAVING COUNT(membership.user_id) = <<length userGroupNames>>
+-- ) uid
+-- ON user.id = uid.user_id
+-- @
 selectUserByUserGroupNameList
-    -> [Text] -- ^ list of userGroup name
+    -> [Text] -- ^ list of UserGroup name
     -> Relation () (Entity User)
 selectUserByUserGroupNameList userGroupNames =
     relation $ do
@@ -90,7 +108,7 @@ selectUserByUserGroupNameList userGroupNames =
         on $ #id user .=. userId
         return user
 
--- ^ query user_id by userGroup name list
+-- ^ query user_id by UserGroup name list
 --
 -- @
 -- SELECT
@@ -98,7 +116,7 @@ selectUserByUserGroupNameList userGroupNames =
 -- FROM membership
 -- INNER JOIN userGroup ON userGroup.id = membership.userGroup_id
 -- WHERE userGroup.name IN (<<userGroupNames>>)
--- USERGROUP BY membership.user_id
+-- GROUP BY membership.user_id
 -- HAVING COUNT(membership.user_id) = <<length userGroupNames>>
 -- @
 userIdFromUserGroupNameList
@@ -121,7 +139,7 @@ Finally, we can execute a query by runQuery:
 ```Haskell
 {-# LANGUAGE OverloadedStrings #-}
 
-import Control.Monad.Base
+import Control.Monad.IO.Class
 import Control.Monad.Logger
 import Control.Monad.Trans.Resource
 import Data.Conduit
@@ -133,16 +151,12 @@ import Database.Relational
 import Model
 import Query
 
-sample1 :: SqlPersistT (LoggingT IO) [UserId]
-sample1 = runResourceT . runConduit $ runQuery (relationalQuery $ userIdFromUserGroupNameList ["tokyo", "haskell"]) () .| CL.consume
-
-sample2 :: SqlPersistT (LoggingT IO) [Entity User]
-sample2 = runResourceT . runConduit $ runQuery (relationalQuery $ selectUserByUserGroupNameList ["tokyo", "haskell"]) () .| CL.consume
+sample :: SqlPersistT (LoggingT IO) [Entity User]
+sample = runResourceT . runConduit $ runQuery (relationalQuery $ selectUserByUserGroupNameList True ["tokyo", "haskell"]) () .| CL.consume
 
 main :: IO ()
 main = runStderrLoggingT $ withMySQLPool defaultConnectInfo 10 $ runSqlPool $ do
-    mapM_ (liftBase . print) =<< sample1
-    mapM_ (liftBase . print) =<< sample2
+    mapM_ (liftIO . print) =<< sample
 ```
 
 `runQuery` run the HRR `Query` and gives the result as conduit `Source`.
