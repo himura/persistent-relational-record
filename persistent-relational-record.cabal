@@ -94,7 +94,7 @@ test-suite examples
                      , template-haskell
                      , text
                      , time
-                     , transformers-base
+                     , transformers
                      , persistent-relational-record
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N -O2 -fsimpl-tick-factor=120
   default-language:    Haskell2010
