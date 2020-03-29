@@ -42,8 +42,7 @@ import Database.Relational
 -- | Execute a HRR 'Query' and return the stream of its results.
 runQuery :: ( MonadResource m
             , MonadReader env m
-            , HasPersistBackend env
-            , BaseBackend env ~ SqlBackend
+            , BackendCompatible SqlBackend env
             , FromSql PersistValue a
             , ToSql PersistValue p
             )
@@ -54,8 +53,7 @@ runQuery q vals = rawQuery q vals .| CL.map (runToRecord recordFromSql)
 
 rawQuery :: ( MonadResource m
             , MonadReader env m
-            , HasPersistBackend env
-            , BaseBackend env ~ SqlBackend
+            , BackendCompatible SqlBackend env
             , ToSql PersistValue p
             )
          => Query p a
