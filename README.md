@@ -1,7 +1,8 @@
 persistent-relational-record
 ============================
 
-[![Travis](https://img.shields.io/travis/himura/persistent-relational-record/master.svg)](https://travis-ci.org/himura/persistent-relational-record)
+![CI](https://github.com/himura/persistent-relational-record/workflows/CI/badge.svg)
+[![Hackage](https://img.shields.io/hackage/v/persistent-relational-record.svg?style=flat)](https://hackage.haskell.org/package/persistent-relational-record)
 [![Hackage-Deps](https://img.shields.io/hackage-deps/v/persistent-relational-record.svg)](http://packdeps.haskellers.com/feed?needle=persistent-relational-record)
 
 ## About ##
