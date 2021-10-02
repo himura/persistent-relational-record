@@ -38,18 +38,18 @@ library
     default-language: Haskell2010
     ghc-options:      -Wall
     build-depends:
-        base >=4.9 && <5,
+        base >=4.11.1.0 && <5,
         array,
         conduit >=1.3.0,
         containers,
         mtl,
         names-th,
         persistable-record >=0.6,
-        persistent >=2.7.1 && <2.12,
+        persistent >=2.13.0.0,
         relational-query >=0.12.0.0,
-        resourcet >=1.1,
-        template-haskell >=2.11,
-        text >=0.8
+        resourcet >=1.1.10,
+        template-haskell >=2.13,
+        text >=1.2
 
 test-suite unittest
     type:             exitcode-stdio-1.0
@@ -67,7 +67,6 @@ test-suite unittest
     build-depends:
         base,
         persistent,
-        persistent-template <2.12,
         relational-query,
         tasty,
         tasty-hunit,
@@ -102,7 +101,6 @@ test-suite examples
             persistable-record,
             persistent,
             persistent-mysql,
-            persistent-template,
             relational-query,
             resourcet,
             template-haskell,

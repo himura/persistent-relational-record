@@ -6,16 +6,35 @@
 
 module Database.Persist.Relational.TH where
 
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Array as Arr
-import Data.Int
+import Data.Int (Int64)
 import qualified Data.Map as M
-import Data.Maybe
+import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
 import Database.Persist
-import Database.Persist.Quasi
-import Database.Persist.Relational.Config
+    ( CompositeDef(CompositeDef, compositeFields)
+    , Entity
+    , EntityDef
+    , EntityIdDef(EntityIdField, EntityIdNaturalKey)
+    , EntityNameDB(unEntityNameDB)
+    , EntityNameHS(unEntityNameHS)
+    , FieldDef(FieldDef, fieldDB, fieldType)
+    , FieldNameDB(FieldNameDB)
+    , FieldType(..)
+    , IsNullable(Nullable)
+    , PersistField(..)
+    , PersistValue
+    , WhyNullable(ByMaybeAttr)
+    , getEntityDBName
+    , getEntityFields
+    , getEntityHaskellName
+    , getEntityId
+    , isFieldNullable
+    )
+import Database.Persist.Relational.Config (NameConfig(..), defaultNameConfig)
 import qualified Database.Persist.Sql as PersistSql
-import Database.Record (PersistableWidth (..))
+import Database.Record (PersistableWidth(..))
 import Database.Record.FromSql (FromSql(..), valueRecordFromSql)
 import Database.Record.Persistable
     ( PersistableRecordWidth
@@ -25,14 +44,38 @@ import Database.Record.Persistable
     , runPersistableRecordWidth
     )
 import Database.Record.TH (deriveNotNullType)
-import Database.Record.ToSql (ToSql (..), valueRecordToSql)
+import Database.Record.ToSql (ToSql(..), valueRecordToSql)
 import Database.Relational (LiteralSQL(..))
 import Database.Relational.OverloadedProjection (HasProjection(..))
 import Database.Relational.Pi.Unsafe (definePi)
-import Database.Relational.TH (defineTableTypes, defineScalarDegree, defineHasNotNullKeyInstance)
-import GHC.Generics
+import Database.Relational.TH (defineHasNotNullKeyInstance, defineScalarDegree, defineTableTypes)
+import GHC.Generics (Generic)
 import Language.Haskell.TH
-import Language.Haskell.TH.Name.CamelCase (VarName (..), varCamelcaseName)
+    ( Dec(InstanceD)
+    , Info(ClassI)
+    , Name
+    , Q
+    , Type(AppT, ConT)
+    , TypeQ
+    , appT
+    , conT
+    , integerL
+    , listT
+    , litE
+    , litT
+    , mkName
+    , nameBase
+    , newName
+    , normalB
+    , promotedT
+    , reify
+    , sigD
+    , strTyLit
+    , valD
+    , varE
+    , varP
+    )
+import Language.Haskell.TH.Name.CamelCase (VarName(..), varCamelcaseName)
 
 mkHrr :: [EntityDef] -> Q [Dec]
 mkHrr = mkHrrWithConfig defaultNameConfig
@@ -60,9 +103,11 @@ mkHrrForEntityDef conf ent = do
 --     https://github.com/yesodweb/persistent/issues/578
 deriveGenericForEntityId :: [EntityDef] -> Q [Dec]
 deriveGenericForEntityId entityDefs =
-    concatMapM mkDerivingGeneric $ map (mkFieldType . entityId) entityDefs
+    concatMapM mkDerivingGeneric $ map mkFieldType $ concatMap (getIdFieldDef . getEntityId) entityDefs
   where
     mkDerivingGeneric typ = [d| deriving instance Generic $typ |]
+    getIdFieldDef (EntityIdField idFieldDef) = [idFieldDef]
+    getIdFieldDef (EntityIdNaturalKey CompositeDef {compositeFields}) = NonEmpty.toList compositeFields
 
 data TableDef = TableDef
     { tableType :: TypeQ
@@ -79,16 +124,20 @@ data Column = Column
     }
 
 entityDefToTableDef :: NameConfig -> EntityDef -> TableDef
-entityDefToTableDef conf@NameConfig {..} ent =
-    TableDef
-    { tableType = conT $ mkName typeName
-    , tableTypeName = typeName
-    , tableDatabaseName = T.unpack . unDBName . entityDB $ ent
-    , tableIdColumn = makeColumn conf $ entityId ent
-    , tableColumns = map (makeColumn conf) $ entityFields ent
-    }
+entityDefToTableDef conf ent =
+    case getEntityId ent of
+        EntityIdField idFieldDef ->
+            TableDef
+                { tableType = conT $ mkName typeName
+                , tableTypeName = typeName
+                , tableDatabaseName = tableName
+                , tableIdColumn = makeColumn conf idFieldDef
+                , tableColumns = map (makeColumn conf) $ getEntityFields ent
+                }
+        EntityIdNaturalKey _ -> error $ "TODO: we currently doesn't supports natural key yet: name = " ++ tableName
   where
-    typeName = T.unpack . unHaskellName . entityHaskell $ ent
+    typeName = T.unpack . unEntityNameHS . getEntityHaskellName $ ent
+    tableName = T.unpack . unEntityNameDB . getEntityDBName $ ent
 
 ftToType :: FieldType -> TypeQ
 ftToType (FTTypeCon Nothing t) = conT $ mkName $ T.unpack t
@@ -96,11 +145,12 @@ ftToType (FTTypeCon Nothing t) = conT $ mkName $ T.unpack t
 -- Adding this special case avoids users needing to import Data.Int
 ftToType (FTTypeCon (Just "Data.Int") "Int64") = conT ''Int64
 ftToType (FTTypeCon (Just m) t) = conT $ mkName $ T.unpack $ T.concat [m, ".", t]
+ftToType (FTTypePromoted t) = promotedT $ mkName $ T.unpack t
 ftToType (FTApp x y) = ftToType x `appT` ftToType y
 ftToType (FTList x) = listT `appT` ftToType x
 
 makeColumn :: NameConfig -> FieldDef -> Column
-makeColumn NameConfig{columnNameToLabelName} fd@FieldDef { fieldDB = DBName dbName } =
+makeColumn NameConfig{columnNameToLabelName} fd@FieldDef { fieldDB = FieldNameDB dbName } =
     Column
     { columnDBName = columnName
     , columnLabelName = columnNameToLabelName columnName
@@ -200,7 +250,7 @@ mkShowConstantTermsSQL typ =
 
 mkFieldType :: FieldDef -> TypeQ
 mkFieldType fd =
-    case nullable . fieldAttrs $ fd of
+    case isFieldNullable fd of
         Nullable ByMaybeAttr -> conT ''Maybe `appT` typ
         _ -> typ
   where
