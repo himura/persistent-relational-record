@@ -1,16 +1,14 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Main where
+module QueryTest where
 
 import Database.Relational as HRR
 import Fixtures.BlogSample.Model
-import Test.Framework
-import Test.Framework.Providers.HUnit
-import Test.Framework.TH
-import Test.HUnit
+import Test.Tasty
+import Test.Tasty.HUnit
+import Test.Tasty.TH
 
 case_simple_equal_string_query :: Assertion
 case_simple_equal_string_query =
@@ -79,5 +77,6 @@ case_inner_join_with_subquery =
         having $ c .=. value (length taglist)
         return g
 
-main :: IO ()
-main = defaultMain [$testGroupGenerator]
+
+tests :: TestTree
+tests = $(testGroupGenerator)
