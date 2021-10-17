@@ -6,38 +6,35 @@
 
 module Database.Persist.Relational.TH where
 
-import qualified Data.List.NonEmpty as NonEmpty
-import qualified Data.Array as Arr
 import Data.Int (Int64)
-import qualified Data.Map as M
 import Data.Maybe (mapMaybe)
-import qualified Data.Text as T
 import Database.Persist
-    ( CompositeDef(CompositeDef, compositeFields)
-    , Entity
-    , EntityDef
-    , EntityIdDef(EntityIdField, EntityIdNaturalKey)
+    ( Entity
     , EntityNameDB(unEntityNameDB)
     , EntityNameHS(unEntityNameHS)
-    , FieldDef(FieldDef, fieldDB, fieldType)
     , FieldNameDB(FieldNameDB)
     , FieldType(..)
     , IsNullable(Nullable)
     , PersistField(..)
     , PersistValue
     , WhyNullable(ByMaybeAttr)
+    , fieldAttrsContainsNullable
     , getEntityDBName
-    , getEntityFields
     , getEntityHaskellName
-    , getEntityId
-    , isFieldNullable
+    )
+import Database.Persist.EntityDef.Internal (EntityDef(entityHaskell))
+import Database.Persist.Quasi.Internal
+    ( PrimarySpec(DefaultKey, NaturalKey, SurrogateKey)
+    , UnboundEntityDef(unboundEntityDef, unboundEntityFields,
+                 unboundPrimarySpec)
+    , UnboundFieldDef(UnboundFieldDef, unboundFieldAttrs,
+                unboundFieldNameDB, unboundFieldType)
     )
 import Database.Persist.Relational.Config (NameConfig(..), defaultNameConfig)
-import qualified Database.Persist.Sql as PersistSql
-import Database.Record (PersistableWidth(..))
 import Database.Record.FromSql (FromSql(..), valueRecordFromSql)
 import Database.Record.Persistable
     ( PersistableRecordWidth
+    , PersistableWidth(..)
     , ProductConst
     , genericFieldOffsets
     , getProductConst
@@ -58,6 +55,7 @@ import Language.Haskell.TH
     , Type(AppT, ConT)
     , TypeQ
     , appT
+    , conK
     , conT
     , integerL
     , listT
@@ -75,17 +73,21 @@ import Language.Haskell.TH
     , varE
     , varP
     )
+import qualified Data.Array as Arr
+import qualified Data.Map as M
+import qualified Data.Text as T
+import qualified Database.Persist.Sql as PersistSql
 import Language.Haskell.TH.Name.CamelCase (VarName(..), varCamelcaseName)
 
-mkHrr :: [EntityDef] -> Q [Dec]
+mkHrr :: [UnboundEntityDef] -> Q [Dec]
 mkHrr = mkHrrWithConfig defaultNameConfig
 
-mkHrrWithConfig :: NameConfig -> [EntityDef] -> Q [Dec]
+mkHrrWithConfig :: NameConfig -> [UnboundEntityDef] -> Q [Dec]
 mkHrrWithConfig conf = concatMapM (mkHrrForEntityDef conf)
 
-mkHrrForEntityDef :: NameConfig -> EntityDef -> Q [Dec]
+mkHrrForEntityDef :: NameConfig -> UnboundEntityDef -> Q [Dec]
 mkHrrForEntityDef conf ent = do
-    pkeyInstances <- mkPersistablePrimaryKey idType
+    pkeyInstances <- mkPersistablePrimaryKey tableDef
     tableTypes <- defineTableTypesForTableDef conf tableDef
     piProjections <- defineMonomorphicProjections tableDef
     pwidthInstances <- definePersistableWidthInstances tableType
@@ -94,26 +96,27 @@ mkHrrForEntityDef conf ent = do
 
     return $ pkeyInstances ++ tableTypes ++ piProjections ++ pwidthInstances ++ fromSqlInstances ++ notNullD
   where
-    tableDef@TableDef { tableType, tableIdColumn = Column {columnType = idType} } = entityDefToTableDef conf ent
+    tableDef@TableDef {tableType} = entityDefToTableDef conf ent
 
 -- | standalone deriving Generic instance for entity IDs.
 --
 -- Persistent does not derive Generic instances for `Key a`.
 -- see https://github.com/yesodweb/persistent/pull/734#issuecomment-346696921
 --     https://github.com/yesodweb/persistent/issues/578
-deriveGenericForEntityId :: [EntityDef] -> Q [Dec]
+deriveGenericForEntityId :: [UnboundEntityDef] -> Q [Dec]
 deriveGenericForEntityId entityDefs =
-    concatMapM mkDerivingGeneric $ map mkFieldType $ concatMap (getIdFieldDef . getEntityId) entityDefs
+    concatMapM mkDerivingGeneric $ map entityIdType entityDefs
   where
     mkDerivingGeneric typ = [d| deriving instance Generic $typ |]
-    getIdFieldDef (EntityIdField idFieldDef) = [idFieldDef]
-    getIdFieldDef (EntityIdNaturalKey CompositeDef {compositeFields}) = NonEmpty.toList compositeFields
+    -- getIdFieldDef (EntityIdField idFieldDef) = [idFieldDef]
+    -- getIdFieldDef (EntityIdNaturalKey CompositeDef {compositeFields}) = NonEmpty.toList compositeFields
+
 
 data TableDef = TableDef
     { tableType :: TypeQ
     , tableTypeName :: String
     , tableDatabaseName :: String
-    , tableIdColumn :: Column
+    , tableIdColumns :: [Column]
     , tableColumns :: [Column]
     }
 
@@ -123,21 +126,37 @@ data Column = Column
     , columnType :: TypeQ
     }
 
-entityDefToTableDef :: NameConfig -> EntityDef -> TableDef
+mkPrimaryKeyColumn :: NameConfig -> UnboundEntityDef  -> [Column]
+mkPrimaryKeyColumn conf ent =
+    case unboundPrimarySpec ent of
+        NaturalKey nk -> error $ "Unsupported NaturalKey: " ++ show nk
+        SurrogateKey sk -> error $ "Unsupported SurrogateKey: " ++ show sk
+        DefaultKey (FieldNameDB dbName) ->
+            [ Column
+                  { columnDBName = T.unpack dbName
+                  , columnLabelName = columnNameToLabelName conf $ T.unpack dbName
+                  , columnType = entityIdType ent
+                  }
+            ]
+
+entityIdType :: UnboundEntityDef -> TypeQ
+entityIdType ent = conT ''PersistSql.Key `appT` entityDefConT ent
+
+entityDefConT :: UnboundEntityDef -> TypeQ
+entityDefConT = pure . conK . mkName . T.unpack . unEntityNameHS . entityHaskell . unboundEntityDef
+
+entityDefToTableDef :: NameConfig -> UnboundEntityDef -> TableDef
 entityDefToTableDef conf ent =
-    case getEntityId ent of
-        EntityIdField idFieldDef ->
-            TableDef
-                { tableType = conT $ mkName typeName
-                , tableTypeName = typeName
-                , tableDatabaseName = tableName
-                , tableIdColumn = makeColumn conf idFieldDef
-                , tableColumns = map (makeColumn conf) $ getEntityFields ent
-                }
-        EntityIdNaturalKey _ -> error $ "TODO: we currently doesn't supports natural key yet: name = " ++ tableName
+    TableDef
+        { tableType = conT $ mkName typeName
+        , tableTypeName = typeName
+        , tableDatabaseName = tableName
+        , tableIdColumns = mkPrimaryKeyColumn conf ent
+        , tableColumns = map (makeColumn conf) $ unboundEntityFields ent
+        }
   where
-    typeName = T.unpack . unEntityNameHS . getEntityHaskellName $ ent
-    tableName = T.unpack . unEntityNameDB . getEntityDBName $ ent
+    typeName = T.unpack . unEntityNameHS . getEntityHaskellName $ unboundEntityDef ent
+    tableName = T.unpack . unEntityNameDB . getEntityDBName $ unboundEntityDef ent
 
 ftToType :: FieldType -> TypeQ
 ftToType (FTTypeCon Nothing t) = conT $ mkName $ T.unpack t
@@ -149,8 +168,8 @@ ftToType (FTTypePromoted t) = promotedT $ mkName $ T.unpack t
 ftToType (FTApp x y) = ftToType x `appT` ftToType y
 ftToType (FTList x) = listT `appT` ftToType x
 
-makeColumn :: NameConfig -> FieldDef -> Column
-makeColumn NameConfig{columnNameToLabelName} fd@FieldDef { fieldDB = FieldNameDB dbName } =
+makeColumn :: NameConfig -> UnboundFieldDef -> Column
+makeColumn NameConfig{columnNameToLabelName} fd@UnboundFieldDef { unboundFieldNameDB = FieldNameDB dbName } =
     Column
     { columnDBName = columnName
     , columnLabelName = columnNameToLabelName columnName
@@ -164,7 +183,7 @@ concatMapM = (fmap concat .) . mapM
 
 -- | Generate `HasProjection "columnName" (Entity table) columnType` instances
 defineMonomorphicProjections :: TableDef -> Q [Dec]
-defineMonomorphicProjections TableDef{tableTypeName = tableTypeNameStr, tableIdColumn, tableColumns} = do
+defineMonomorphicProjections TableDef{tableTypeName = tableTypeNameStr, tableIdColumns, tableColumns} = do
     columnOffsetsVarName <- newName $ "columnOffsets" ++ tableTypeNameStr
     columnOffsetsEntityVarName <- newName $ "columnOffsetsEntity" ++ tableTypeNameStr
     coVar <- defineColumnOffsetsVar tableTypeName columnOffsetsVarName columnOffsetsEntityVarName
@@ -172,7 +191,7 @@ defineMonomorphicProjections TableDef{tableTypeName = tableTypeNameStr, tableIdC
     return $ coVar ++ piPrjs
   where
     tableTypeName = mkName tableTypeNameStr
-    columns = tableIdColumn : tableColumns
+    columns = tableIdColumns ++ tableColumns
 
 -- | Generate a `HasProjection "columnName" (Entity table) columnType` instance
 definePiProjection ::
@@ -222,7 +241,7 @@ defineTableTypesForTableDef conf TableDef {..} =
     tableVarName = mkVarName tableVarNameFromTableTypeName
     insertVarName = mkVarName insertVarNameFromTableTypeName
     insertQueryVarName = mkVarName insertQueryVarNameFromTableTypeName
-    colNames = map columnDBName $ tableIdColumn : tableColumns
+    colNames = map columnDBName $ tableIdColumns ++ tableColumns
 
 
 definePersistableWidthInstances :: TypeQ -> Q [Dec]
@@ -235,26 +254,28 @@ defineFromSqlPersistValueInstances tableType =
     [d| instance FromSql PersistValue $tableType
         instance FromSql PersistValue (Entity $tableType) |]
 
-mkPersistablePrimaryKey :: TypeQ -> Q [Dec]
-mkPersistablePrimaryKey typ = do
+-- | Generate HRR instances for persistent's default primary key type
+mkPersistablePrimaryKey :: TableDef -> Q [Dec]
+mkPersistablePrimaryKey TableDef {tableIdColumns = [Column {columnType = typ}]} = do
     notNullD <- deriveNotNullType typ
     persistableD <- defineFromToSqlPersistValue typ
     scalarDegD <- defineScalarDegree typ
     showCTermSQLD <- mkShowConstantTermsSQL typ
     return $ notNullD ++ persistableD ++ scalarDegD ++ showCTermSQLD
+mkPersistablePrimaryKey _ = pure []
 
 mkShowConstantTermsSQL :: TypeQ -> Q [Dec]
 mkShowConstantTermsSQL typ =
     [d|instance LiteralSQL $typ where
            showLiteral' = showLiteral' . PersistSql.fromSqlKey|]
 
-mkFieldType :: FieldDef -> TypeQ
+mkFieldType :: UnboundFieldDef -> TypeQ
 mkFieldType fd =
-    case isFieldNullable fd of
+    case fieldAttrsContainsNullable $ unboundFieldAttrs fd of
         Nullable ByMaybeAttr -> conT ''Maybe `appT` typ
         _ -> typ
   where
-    typ = ftToType . fieldType $ fd
+    typ = ftToType . unboundFieldType $ fd
 
 -- | Generate 'FromSql' 'PersistValue' and 'ToSql' 'PersistValue' instances for 'PersistField' types.
 defineFromToSqlPersistValue :: TypeQ -> Q [Dec]

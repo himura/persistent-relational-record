@@ -3,7 +3,7 @@ module Database.Persist.Relational.Config
     , defaultNameConfig
     ) where
 
-import Data.Char
+import Data.Char (toLower, toUpper)
 
 data NameConfig = NameConfig
     { tableVarNameFromTableTypeName :: String -> String
