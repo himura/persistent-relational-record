@@ -56,7 +56,7 @@ sample = do
         .| CL.mapM_ (liftIO . printUser)
 
 printUser :: Entity User -> IO ()
-printUser (Entity k (User {..})) =
+printUser (Entity k User {..}) =
     T.putStrLn $ T.concat [ T.pack (show userId), ": ", userName, " <", userEmail, ">" ]
   where
     userId = fromSqlKey k
