@@ -41,7 +41,7 @@ userIdFromUserGroupNameList matchAny userGroupNames =
         on $ #id userGroup .=. #userGroupId membership
         wheres $ #name userGroup `in'` values userGroupNames
         g <- groupBy $ #userId membership
-        let c = count $ (#userGroupId membership)
+        let c = count $ #userGroupId membership
         having $
             if matchAny
                 then c .>. value (0 :: Int)
