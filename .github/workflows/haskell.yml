@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         ghc: [ '8.6.5', '8.8.4', '8.10.7' ]
-        cabal: [ '3.0' ]
+        cabal: [ '3.2' ]
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-haskell@v1
@@ -47,3 +47,15 @@ jobs:
         run: sudo apt-get install hlint
 
       - run: hlint --git
+
+  cabal-format:
+    name: check .cabal style
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-haskell@v1
+        with:
+          cabal-version: '3.2'
+      - run: cabal format
+      - run: git diff --exit-code
