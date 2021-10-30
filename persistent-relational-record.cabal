@@ -64,15 +64,6 @@ test-suite unittest
   other-modules:       Fixtures.BlogSample.Model
                        QueryTest
 
-test-suite hlint
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      tests
-  main-is:             hlint.hs
-  build-depends:
-      base
-    , hlint >= 1.7
-  default-language:    Haskell2010
-
 test-suite examples
   type:                exitcode-stdio-1.0
   hs-source-dirs:      examples
