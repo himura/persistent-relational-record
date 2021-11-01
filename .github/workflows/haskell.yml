@@ -17,6 +17,20 @@ jobs:
       matrix:
         ghc: [ '8.6.5', '8.8.4', '8.10.7' ]
         cabal: [ '3.2' ]
+
+    services:
+      mysql:
+        image: mysql:5.7
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: ''
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: test
+          MYSQL_USER: test
+          MYSQL_PASSWORD: test
+        options: --health-cmd "mysqladmin ping -h localhost" --health-interval 20s --health-timeout 10s --health-retries 10
+
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-haskell@v1
@@ -36,7 +50,7 @@ jobs:
     - name: Build
       run: cabal v2-build all
     - name: Run tests
-      run: cabal v2-test all
+      run: cabal v2-test all -ftest-examples
 
   hlint:
     name: lint *.hs

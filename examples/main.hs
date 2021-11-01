@@ -63,9 +63,9 @@ printUser (Entity k User {..}) =
 
 getConnectInfo :: IO ConnectInfo
 getConnectInfo = do
-    host <- fromMaybe "localhost" `fmap` lookupEnv "MYSQL_HOST"
-    user <- fromMaybe "travis" `fmap` lookupEnv "MYSQL_USER"
-    pass <- fromMaybe "" `fmap`lookupEnv "MYSQL_PASS"
+    host <- fromMaybe "127.0.0.1" `fmap` lookupEnv "MYSQL_HOST"
+    user <- fromMaybe "test" `fmap` lookupEnv "MYSQL_USER"
+    pass <- fromMaybe "test" `fmap`lookupEnv "MYSQL_PASS"
     return defaultConnectInfo
         { connectHost = host
         , connectUser = user
