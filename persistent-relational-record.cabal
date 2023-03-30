@@ -8,7 +8,7 @@ maintainer:         taka@himura.jp
 author:             Takahiro HIMURA
 tested-with:        ghc ==8.6.5 ghc ==8.8.4 ghc ==8.10.7
 homepage:           http://github.com/himura/persistent-relational-record
-synopsis:           relational-record on persisten backends.
+synopsis:           relational-record on persistent backends.
 description:
     Please see the README on Github at <https://github.com/himura/persistent-relational-record#readme>
 

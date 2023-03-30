@@ -32,4 +32,4 @@ instance PersistFieldSql UserStatus where
 instance PersistField UserStatus where
     toPersistValue = PersistInt64 . fromIntegral . fromEnum
     fromPersistValue (PersistInt64 v) = Right . toEnum . fromIntegral $ v
-    fromPersistValue v = Left . T.pack $ "UserStatus: Unkown Type, recieved: " ++ show v
+    fromPersistValue v = Left . T.pack $ "UserStatus: Unknown Type, received: " ++ show v
